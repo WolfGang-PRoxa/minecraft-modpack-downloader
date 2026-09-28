@@ -1,0 +1,24 @@
+appId: com.wolfgangproxa.modpackdownloader
+productName: Modpack Downloader
+directories:
+  buildResources: build
+  output: dist
+files:
+  - out/**/*
+  - package.json
+asarUnpack: []
+win:
+  target:
+    - target: nsis
+      arch: [x64]
+  icon: build/icon.png
+  artifactName: Modpack-Downloader-Setup-${version}.${ext}
+nsis:
+  oneClick: true
+  perMachine: false
+  createDesktopShortcut: always
+  createStartMenuShortcut: true
+  shortcutName: Modpack Downloader
+  runAfterFinish: true
+  deleteAppDataOnUninstall: false
+publish: null
