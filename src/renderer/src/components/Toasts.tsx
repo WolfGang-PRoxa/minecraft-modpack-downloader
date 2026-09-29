@@ -1,6 +1,14 @@
 import { CircleCheck, CircleX, Info, X } from 'lucide-react'
 import { useStore } from '../store'
 
+export interface ToastItem {
+  id: number
+  kind: 'success' | 'error' | 'info'
+  title: string
+  message?: string
+  action?: { label: string; run: () => void }
+}
+
 const STYLES = {
   success: { icon: CircleCheck, color: 'text-grass-400', ring: 'ring-grass-400/25' },
   error: { icon: CircleX, color: 'text-red-400', ring: 'ring-red-400/25' },
@@ -10,7 +18,10 @@ const STYLES = {
 export function Toasts() {
   const toasts = useStore((s) => s.toasts)
   const dismiss = useStore((s) => s.dismissToast)
+  return <ToastList toasts={toasts} dismiss={dismiss} />
+}
 
+export function ToastList({ toasts, dismiss }: { toasts: ToastItem[]; dismiss: (id: number) => void }) {
   return (
     <div className="pointer-events-none fixed right-6 bottom-6 z-[60] flex w-[400px] max-w-[calc(100vw-3rem)] flex-col gap-3">
       {toasts.map((toast) => {

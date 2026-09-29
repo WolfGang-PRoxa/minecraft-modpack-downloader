@@ -20,7 +20,7 @@ export function VersionMeta({ version, withSize = true }: { version: ModpackVers
     <div className="flex flex-wrap gap-2">
       {version.minecraftVersion && <MetaChip icon={Blocks}>Minecraft {version.minecraftVersion}</MetaChip>}
       {loader && <MetaChip icon={Cpu}>{loader}</MetaChip>}
-      {version.modCount !== null && <MetaChip icon={Package}>{version.modCount} mods</MetaChip>}
+      {version.modCount !== null && <MetaChip icon={Package}>{version.modCount} mod{version.modCount > 1 ? 's' : ''}</MetaChip>}
       {withSize && version.archiveSize > 0 && <MetaChip icon={HardDrive}>{formatBytes(version.archiveSize)}</MetaChip>}
     </div>
   )

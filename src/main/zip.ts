@@ -5,13 +5,13 @@ import { Transform, type Readable } from 'node:stream'
 import { pipeline } from 'node:stream/promises'
 import yauzl from 'yauzl'
 
-function openZip(file: string): Promise<yauzl.ZipFile> {
+export function openZip(file: string): Promise<yauzl.ZipFile> {
   return new Promise((resolvePromise, reject) => {
     yauzl.open(file, { lazyEntries: true, autoClose: false }, (err, zip) => (err ? reject(err) : resolvePromise(zip)))
   })
 }
 
-function readEntries(zip: yauzl.ZipFile): Promise<yauzl.Entry[]> {
+export function readEntries(zip: yauzl.ZipFile): Promise<yauzl.Entry[]> {
   return new Promise((resolvePromise, reject) => {
     const entries: yauzl.Entry[] = []
     zip.on('entry', (entry: yauzl.Entry) => {
@@ -24,7 +24,7 @@ function readEntries(zip: yauzl.ZipFile): Promise<yauzl.Entry[]> {
   })
 }
 
-function openEntry(zip: yauzl.ZipFile, entry: yauzl.Entry): Promise<Readable> {
+export function openEntry(zip: yauzl.ZipFile, entry: yauzl.Entry): Promise<Readable> {
   return new Promise((resolvePromise, reject) => {
     zip.openReadStream(entry, (err, stream) => (err ? reject(err) : resolvePromise(stream)))
   })
@@ -46,7 +46,7 @@ function safeTarget(root: string, relative: string): string {
  * Détermine le préfixe à retirer pour que `marker` (ex. minecraftinstance.json)
  * se retrouve à la racine : accepte un zip du contenu comme un zip du dossier.
  */
-function findRootPrefix(entries: yauzl.Entry[], marker: string): string | null {
+export function findRootPrefix(entries: yauzl.Entry[], marker: string): string | null {
   let best: string | null = null
   for (const { fileName } of entries) {
     if (fileName === marker) return ''

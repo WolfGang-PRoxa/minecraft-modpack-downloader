@@ -1,0 +1,343 @@
+import { useState, type DragEvent, type ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
+import {
+  CircleAlert,
+  CloudOff,
+  ExternalLink,
+  FileArchive,
+  FolderOpen,
+  Hourglass,
+  NotebookPen,
+  PackagePlus,
+  Pencil,
+  TriangleAlert,
+  Upload
+} from 'lucide-react'
+import type { PackView, PendingZip, RemoteOnlyVersion, RemoteStatus, VersionView } from '../../../shared/studio'
+import { Button } from '../components/Button'
+import { Cover } from '../components/Cover'
+import { formatBytes, formatDate, formatLoader } from '../lib/format'
+import { errorMessage, openLink, openPath, useStudio } from './store'
+
+const STATUS: Record<RemoteStatus, { label: string; className: string }> = {
+  published: { label: 'En ligne', className: 'bg-grass-400/15 text-grass-300 ring-grass-400/30' },
+  create: { label: 'À publier', className: 'bg-sky-400/15 text-sky-300 ring-sky-400/30' },
+  update: { label: 'Modifiée', className: 'bg-amber-glow/15 text-amber-glow ring-amber-glow/35' },
+  blocked: { label: 'Non publiable', className: 'bg-red-500/15 text-red-300 ring-red-400/30' },
+  unknown: { label: 'GitHub non vérifié', className: 'bg-white/[0.06] text-ink-300 ring-white/10' }
+}
+
+export function Pill({
+  className,
+  children,
+  title,
+  icon: Icon
+}: {
+  className: string
+  children: ReactNode
+  title?: string
+  icon?: LucideIcon
+}) {
+  return (
+    <span
+      title={title}
+      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ring-1 ring-inset ${className}`}
+    >
+      {Icon ? <Icon size={12} strokeWidth={2.5} /> : <span className="size-1.5 rounded-full bg-current" />}
+      {children}
+    </span>
+  )
+}
+
+function Message({ tone, children }: { tone: 'warning' | 'error'; children: ReactNode }) {
+  const Icon = tone === 'error' ? CircleAlert : TriangleAlert
+  return (
+    <p className={`mt-1.5 flex items-start gap-1.5 text-xs leading-relaxed ${tone === 'error' ? 'text-red-300' : 'text-amber-glow/90'}`}>
+      <Icon size={13} className="mt-px shrink-0" />
+      <span>{children}</span>
+    </p>
+  )
+}
+
+function Row({ badge, children, aside }: { badge: ReactNode; children: ReactNode; aside?: ReactNode }) {
+  return (
+    <div className="flex items-start gap-4 rounded-xl px-4 py-3 transition hover:bg-white/[0.03]">
+      <div className="w-14 shrink-0 pt-0.5">{badge}</div>
+      <div className="min-w-0 flex-1">{children}</div>
+      {aside && <div className="flex shrink-0 items-center gap-2">{aside}</div>}
+    </div>
+  )
+}
+
+function VersionBadge({ children, tone = 'default' }: { children: ReactNode; tone?: 'default' | 'muted' | 'removed' }) {
+  const styles = {
+    default: 'bg-white/[0.08] text-ink-100',
+    muted: 'bg-white/[0.04] text-ink-400',
+    removed: 'bg-red-500/10 text-red-300/80 line-through'
+  }[tone]
+  return <span className={`inline-block rounded-lg px-2 py-1 font-display text-sm font-bold ${styles}`}>{children}</span>
+}
+
+function versionMeta(version: VersionView): string {
+  const a = version.analysis
+  return [
+    formatBytes(version.size),
+    a?.minecraftVersion && `Minecraft ${a.minecraftVersion}`,
+    a && formatLoader(a.modLoader),
+    a?.modCount != null && `${a.modCount} mod${a.modCount > 1 ? 's' : ''}`,
+    formatDate(version.modifiedAt)
+  ]
+    .filter(Boolean)
+    .join(' · ')
+}
+
+function VersionRow({ pack, version }: { pack: PackView; version: VersionView }) {
+  const openDialog = useStudio((s) => s.openDialog)
+  const status = STATUS[version.remote]
+  return (
+    <Row
+      badge={<VersionBadge>v{version.number}</VersionBadge>}
+      aside={
+        <>
+          <Pill className={status.className} title={version.changes.join('\n') || undefined}>
+            {status.label}
+          </Pill>
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={NotebookPen}
+            onClick={() => openDialog({ kind: 'notes', folder: pack.folder, version: version.number })}
+            className={version.notes ? 'text-grass-300' : ''}
+          >
+            {version.notes ? 'Notes' : 'Ajouter des notes'}
+          </Button>
+        </>
+      }
+    >
+      <p className="truncate font-medium text-ink-100 select-text">{version.fileName}</p>
+      <p className="mt-0.5 text-xs text-ink-400">{versionMeta(version)}</p>
+      {version.error && <Message tone="error">{version.error}</Message>}
+      {version.remote === 'update' &&
+        version.changes.map((change) => (
+          <p key={change} className="mt-1 text-xs text-amber-glow/80">
+            ↻ {change}
+          </p>
+        ))}
+      {version.analysis?.warnings.map((warning) => (
+        <Message key={warning} tone="warning">
+          {warning}
+        </Message>
+      ))}
+    </Row>
+  )
+}
+
+function PendingRow({ zip, number }: { zip: PendingZip; number: number | null }) {
+  return (
+    <Row
+      badge={<VersionBadge tone="muted">{number ? `v${number}` : '—'}</VersionBadge>}
+      aside={
+        zip.error ? (
+          <Pill className={STATUS.blocked.className}>Refusé</Pill>
+        ) : (
+          <Pill className="bg-white/[0.06] text-ink-200 ring-white/10" icon={Hourglass}>
+            À ranger
+          </Pill>
+        )
+      }
+    >
+      <p className="truncate font-medium text-ink-200 select-text">{zip.fileName}</p>
+      <p className="mt-0.5 text-xs text-ink-400">
+        {formatBytes(zip.size)} · {formatDate(zip.modifiedAt)}
+        {number && !zip.error && ` · deviendra la v${number}`}
+      </p>
+      {zip.error && <Message tone="error">{zip.error}</Message>}
+      {zip.warnings.map((warning) => (
+        <Message key={warning} tone="warning">
+          {warning}
+        </Message>
+      ))}
+    </Row>
+  )
+}
+
+function RemoteOnlyRow({ version }: { version: RemoteOnlyVersion }) {
+  return (
+    <Row
+      badge={<VersionBadge tone="removed">v{version.version}</VersionBadge>}
+      aside={
+        <>
+          <Pill className={STATUS.blocked.className} icon={CloudOff}>
+            Sera retirée
+          </Pill>
+          <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => openLink(version.url)}>
+            GitHub
+          </Button>
+        </>
+      }
+    >
+      <p className="font-medium text-ink-300">{version.draft ? 'Brouillon abandonné sur GitHub' : 'Toujours sur GitHub'}</p>
+      <p className="mt-0.5 text-xs text-ink-400">
+        {version.draft
+          ? 'Reste d’une publication interrompue : il sera supprimé.'
+          : 'Son zip n’est plus dans le dossier : la release sera supprimée à la prochaine publication.'}
+      </p>
+    </Row>
+  )
+}
+
+function useFileDrop(folder: string) {
+  const [over, setOver] = useState(false)
+  const pushToast = useStudio((s) => s.pushToast)
+  const refresh = useStudio((s) => s.refresh)
+
+  const hasFiles = (e: DragEvent) => e.dataTransfer.types.includes('Files')
+  return {
+    over,
+    handlers: {
+      onDragEnter: (e: DragEvent) => {
+        if (!hasFiles(e)) return
+        e.preventDefault()
+        setOver(true)
+      },
+      onDragOver: (e: DragEvent) => {
+        if (!hasFiles(e)) return
+        e.preventDefault()
+        e.dataTransfer.dropEffect = 'copy'
+      },
+      onDragLeave: (e: DragEvent) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOver(false)
+      },
+      onDrop: async (e: DragEvent) => {
+        e.preventDefault()
+        setOver(false)
+        const paths = [...e.dataTransfer.files].map((file) => window.studio.getPathForFile(file)).filter(Boolean)
+        if (!paths.length) return
+        try {
+          const result = await window.studio.importFiles(folder, paths)
+          if (!result.ok) {
+            pushToast({ kind: 'error', title: 'Copie impossible', message: result.error })
+            return
+          }
+          const parts = [
+            result.zips && `${result.zips} zip${result.zips > 1 ? 's' : ''} ajouté${result.zips > 1 ? 's' : ''}`,
+            result.cover && 'image de couverture remplacée'
+          ].filter(Boolean)
+          if (parts.length) {
+            pushToast({
+              kind: 'success',
+              title: parts.join(', ').replace(/^./, (c) => c.toUpperCase()),
+              message: result.zips ? 'Clique sur « Ranger les zips » pour leur donner un numéro de version.' : undefined
+            })
+          }
+          if (result.ignored.length) {
+            pushToast({ kind: 'info', title: 'Fichiers ignorés', message: `Seuls les zips et les images sont acceptés : ${result.ignored.join(', ')}` })
+          }
+        } catch (err) {
+          pushToast({ kind: 'error', title: 'Copie impossible', message: errorMessage(err) })
+        } finally {
+          void refresh()
+        }
+      }
+    }
+  }
+}
+
+export function PackCard({ pack, index }: { pack: PackView; index: number }) {
+  const openDialog = useStudio((s) => s.openDialog)
+  const { over, handlers } = useFileDrop(pack.folder)
+  const empty = !pack.versions.length && !pack.pending.length && !pack.remoteOnly.length
+  let next = pack.nextVersion
+
+  return (
+    <section
+      {...handlers}
+      className={`animate-rise relative overflow-hidden rounded-3xl bg-ink-850 ring-1 transition ${
+        over ? 'ring-2 ring-grass-400/70' : 'ring-white/[0.06]'
+      }`}
+      style={{ animationDelay: `${Math.min(index, 6) * 50}ms` }}
+    >
+      <div className="flex gap-6 p-6">
+        <button
+          type="button"
+          onClick={() => openDialog({ kind: 'pack-info', folder: pack.folder })}
+          className="group relative aspect-[16/9] w-60 shrink-0 overflow-hidden rounded-2xl ring-1 ring-white/10"
+          title="Modifier l’image"
+        >
+          <Cover id={pack.id} name={pack.name} url={pack.coverUrl} className="absolute inset-0" />
+          <span className="absolute inset-0 flex items-center justify-center bg-ink-950/60 text-sm font-semibold text-ink-100 opacity-0 transition group-hover:opacity-100">
+            <Pencil size={16} className="mr-2" /> Image
+          </span>
+        </button>
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 className="font-display text-2xl font-bold tracking-tight text-ink-100">{pack.name}</h2>
+            <span className="font-mono text-xs text-ink-500 select-text" title="Identifiant publié sur GitHub">
+              {pack.id}
+            </span>
+          </div>
+          {pack.description ? (
+            <p className="mt-1.5 line-clamp-2 text-sm text-ink-300">{pack.description}</p>
+          ) : (
+            <p className="mt-1.5 text-sm text-ink-500 italic">Pas encore de description.</p>
+          )}
+          <div className="mt-auto flex flex-wrap gap-2 pt-4">
+            <Button size="sm" icon={Pencil} onClick={() => openDialog({ kind: 'pack-info', folder: pack.folder })}>
+              Infos et image
+            </Button>
+            <Button size="sm" icon={PackagePlus} onClick={() => openDialog({ kind: 'import', folder: pack.folder })}>
+              Créer la v{pack.nextVersion} depuis CurseForge
+            </Button>
+            <Button size="sm" variant="ghost" icon={FolderOpen} onClick={() => openPath(pack.dir)}>
+              Ouvrir le dossier
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {pack.errors.length > 0 && (
+        <div className="mx-6 mb-4 rounded-xl bg-red-500/10 px-4 py-3 ring-1 ring-inset ring-red-400/25">
+          <p className="text-sm font-semibold text-red-300">Ce modpack ne sera pas publié tant que ceci n’est pas corrigé :</p>
+          {pack.errors.map((error) => (
+            <p key={error} className="mt-1 text-sm text-ink-200 select-text">
+              {error}
+            </p>
+          ))}
+        </div>
+      )}
+
+      <div className="border-t border-white/[0.05] px-2 py-2">
+        {pack.pending.map((zip) => (
+          <PendingRow key={zip.fileName} zip={zip} number={zip.error ? null : next++} />
+        ))}
+        {pack.versions.map((version) => (
+          <VersionRow key={version.fileName} pack={pack} version={version} />
+        ))}
+        {pack.remoteOnly.map((version) => (
+          <RemoteOnlyRow key={version.tag} version={version} />
+        ))}
+        {empty && (
+          <div className="flex items-center gap-4 px-4 py-5 text-sm text-ink-400">
+            <FileArchive size={22} className="shrink-0 text-ink-500" />
+            <span>
+              Aucun zip pour l’instant. Dépose les zips de ce modpack dans{' '}
+              <button type="button" className="font-semibold text-grass-300 hover:text-grass-400" onClick={() => openPath(pack.dir)}>
+                son dossier
+              </button>
+              , glisse-les ici, ou crée une version depuis CurseForge.
+            </span>
+          </div>
+        )}
+      </div>
+
+      {over && (
+        <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-ink-950/75 backdrop-blur-sm">
+          <div className="flex items-center gap-3 rounded-2xl bg-grass-400/15 px-6 py-4 font-semibold text-grass-300 ring-1 ring-grass-400/40">
+            <Upload size={20} /> Déposer dans {pack.name}
+          </div>
+        </div>
+      )}
+    </section>
+  )
+}

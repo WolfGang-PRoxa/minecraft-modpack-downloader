@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AppUpdateBanner, CurseForgeMissingBanner, OfflineBanner } from './components/Banners'
+import { AppUpdateBanner, CurseForgeMissingBanner, OfflineBanner, ShortcutBanner } from './components/Banners'
 import { DetailsPanel } from './components/DetailsPanel'
 import { Hero } from './components/Hero'
 import { ModpackCard } from './components/ModpackCard'
@@ -66,6 +66,7 @@ export function App() {
         <AppUpdateBanner />
         <CurseForgeMissingBanner />
         <OfflineBanner />
+        <ShortcutBanner />
         <Library />
       </main>
 

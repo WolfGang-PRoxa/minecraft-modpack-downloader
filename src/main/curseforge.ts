@@ -120,7 +120,7 @@ async function instancesDirFromLogs(): Promise<string | null> {
 }
 
 export async function resolveInstancesDir(
-  settings: Settings
+  settings: Pick<Settings, 'instancesDir'>
 ): Promise<{ dir: string; source: CurseForgeStatus['instancesDirSource'] }> {
   if (settings.instancesDir) return { dir: settings.instancesDir, source: 'settings' }
   const fromLogs = await instancesDirFromLogs()

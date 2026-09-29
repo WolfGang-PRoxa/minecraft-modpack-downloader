@@ -1,10 +1,11 @@
 import { BrowserWindow, dialog, ipcMain, shell, app } from 'electron'
-import type { AppUpdateInfo, ModpackVersion, Settings } from '../shared/types'
+import type { AppUpdateInfo, ModpackVersion, Settings, ShortcutLocation } from '../shared/types'
 import { installAppUpdate } from './appUpdate'
 import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir } from './curseforge'
 import { getCatalog } from './github'
 import { cancelInstall, installModpack, listInstalled } from './installer'
 import { getSettings, updateSettings } from './settings'
+import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
   const send = (channel: string, payload: unknown) => {
@@ -34,6 +35,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (typeof patch.openCurseForgeAfterInstall === 'boolean') {
       allowed.openCurseForgeAfterInstall = patch.openCurseForgeAfterInstall
     }
+    if (typeof patch.shortcutPrompted === 'boolean') allowed.shortcutPrompted = patch.shortcutPrompted
     return updateSettings(allowed)
   })
   ipcMain.handle('settings:pickInstancesDir', async () => {
@@ -47,6 +49,14 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     const result = win ? await dialog.showOpenDialog(win, options) : await dialog.showOpenDialog(options)
     if (result.canceled || !result.filePaths[0]) return null
     return updateSettings({ instancesDir: result.filePaths[0] })
+  })
+
+  ipcMain.handle('shortcut:status', () => shortcutStatus(PLAYER_SHORTCUT))
+  ipcMain.handle('shortcut:create', async (_e, location: ShortcutLocation) => {
+    const result = await createShortcut(PLAYER_SHORTCUT, location === 'choose' ? 'choose' : 'desktop', getWindow())
+    // Une réponse a été donnée : le bandeau de premier lancement ne revient plus.
+    if (result.ok) await updateSettings({ shortcutPrompted: true })
+    return result
   })
 
   ipcMain.handle('shell:openPath', async (_e, path: string) => {

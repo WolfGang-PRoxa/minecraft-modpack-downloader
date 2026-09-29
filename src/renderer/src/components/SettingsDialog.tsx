@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { ExternalLink, FolderCog, FolderOpen, RotateCcw, X } from 'lucide-react'
+import { ExternalLink, FolderCog, FolderOpen, Monitor, RotateCcw, X } from 'lucide-react'
 import { CURSEFORGE_DOWNLOAD_URL, GITHUB_REPO_URL } from '../../../shared/config'
 import { useStore } from '../store'
 import { Button, IconButton } from './Button'
@@ -44,6 +44,8 @@ export function SettingsDialog() {
   const appVersion = useStore((s) => s.appVersion)
   const updateSettings = useStore((s) => s.updateSettings)
   const pickInstancesDir = useStore((s) => s.pickInstancesDir)
+  const shortcut = useStore((s) => s.shortcut)
+  const createShortcut = useStore((s) => s.createShortcut)
 
   useEffect(() => {
     if (!open) return
@@ -130,6 +132,22 @@ export function SettingsDialog() {
           <p className="mt-3 text-xs leading-relaxed text-ink-400">
             À modifier seulement si tu as changé le dossier d’installation dans les paramètres Minecraft de CurseForge.
           </p>
+        </Section>
+
+        <Section title="Raccourci">
+          <p className="text-sm text-ink-200">
+            {shortcut?.onDesktop
+              ? 'Modpack Downloader a un raccourci sur ton bureau.'
+              : 'Pas de raccourci sur ton bureau pour l’instant.'}
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Button size="sm" icon={Monitor} onClick={() => void createShortcut('desktop')}>
+              {shortcut?.onDesktop ? 'Recréer sur le bureau' : 'Ajouter au bureau'}
+            </Button>
+            <Button size="sm" variant="ghost" icon={FolderOpen} onClick={() => void createShortcut('choose')}>
+              Autre emplacement…
+            </Button>
+          </div>
         </Section>
 
         <Section title="À propos">

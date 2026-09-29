@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { CircleArrowUp, ExternalLink, TriangleAlert, WifiOff } from 'lucide-react'
+import { CircleArrowUp, ExternalLink, FolderOpen, Monitor, TriangleAlert, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { CURSEFORGE_DOWNLOAD_URL } from '../../../shared/config'
 import { formatBytes } from '../lib/format'
@@ -77,6 +77,37 @@ export function CurseForgeMissingBanner() {
     >
       <strong className="font-semibold">CurseForge n’est pas installé.</strong>{' '}
       <span className="text-ink-300">Il est nécessaire pour jouer aux modpacks. Installe-le puis relance cette application.</span>
+    </Banner>
+  )
+}
+
+/** Proposé au premier lancement : l'installeur ne pose plus de raccourci sur le bureau d'office. */
+export function ShortcutBanner() {
+  const settings = useStore((s) => s.settings)
+  const shortcut = useStore((s) => s.shortcut)
+  const createShortcut = useStore((s) => s.createShortcut)
+  const updateSettings = useStore((s) => s.updateSettings)
+  if (!settings || settings.shortcutPrompted || !shortcut || shortcut.onDesktop) return null
+  return (
+    <Banner
+      icon={Monitor}
+      tone="bg-grass-400/10 text-grass-300 ring-grass-400/25"
+      action={
+        <div className="flex shrink-0 items-center gap-2">
+          <Button size="sm" variant="primary" icon={Monitor} onClick={() => void createShortcut('desktop')}>
+            Ajouter au bureau
+          </Button>
+          <Button size="sm" icon={FolderOpen} onClick={() => void createShortcut('choose')}>
+            Ailleurs…
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => void updateSettings({ shortcutPrompted: true })}>
+            Non merci
+          </Button>
+        </div>
+      }
+    >
+      <strong className="font-semibold">Ajouter un raccourci ?</strong>{' '}
+      <span className="text-ink-300">Pour retrouver Modpack Downloader directement depuis ton bureau, ou l’endroit de ton choix.</span>
     </Banner>
   )
 }

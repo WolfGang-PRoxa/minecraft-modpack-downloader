@@ -12,7 +12,9 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json",
     "build:win": "npm run build && electron-builder --win --publish never",
     "preview": "electron-vite preview",
-    "publish:modpack": "tsx scripts/publish-modpack.ts"
+    "studio": "electron-vite dev -- --studio",
+    "modpacks:ranger": "tsx scripts/modpacks.ts ranger",
+    "modpacks:publier": "tsx scripts/modpacks.ts publier"
   },
   "dependencies": {
     "yauzl": "^3.4.0"

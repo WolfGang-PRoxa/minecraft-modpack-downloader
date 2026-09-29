@@ -1,4 +1,4 @@
-import { app, BrowserWindow, Menu, shell } from 'electron'
+import { app, BrowserWindow, Menu, protocol, shell } from 'electron'
 import { join } from 'node:path'
 import { registerIpc } from './ipc'
 
@@ -60,9 +60,11 @@ function createWindow(): void {
   }
 }
 
-if (!app.requestSingleInstanceLock()) {
-  app.quit()
-} else {
+function startPlayer(): void {
+  if (!app.requestSingleInstanceLock()) {
+    app.quit()
+    return
+  }
   app.on('second-instance', () => {
     if (!mainWindow) return
     if (mainWindow.isMinimized()) mainWindow.restore()
@@ -77,4 +79,18 @@ if (!app.requestSingleInstanceLock()) {
   })
 
   app.on('window-all-closed', () => app.quit())
+}
+
+// `--studio` ouvre l'outil de l'auteur (ranger et publier les modpacks) au lieu de l'application des joueurs.
+if (process.argv.includes('--studio')) {
+  // À régler avant `ready` : dossier de données et verrou d'instance propres au studio.
+  app.setName('Modpack Studio')
+  app.setPath('userData', join(app.getPath('appData'), 'Modpack Studio'))
+  protocol.registerSchemesAsPrivileged([
+    { scheme: 'studio-media', privileges: { standard: true, secure: true, supportFetchAPI: true } }
+  ])
+  if (!app.requestSingleInstanceLock()) app.quit()
+  else void import('./studio/app').then((studio) => studio.startStudio(__dirname))
+} else {
+  startPlayer()
 }

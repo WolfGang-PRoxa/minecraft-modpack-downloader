@@ -12,6 +12,8 @@ export interface ModpackManifest {
   archiveSize: number
   archiveSha256: string | null
   cover: string | null
+  /** Empreinte de l'image : permet au studio de savoir si elle a changé. */
+  coverSha256?: string | null
   author: string | null
   createdAt: string
 }
@@ -88,7 +90,19 @@ export interface Settings {
   /** Dossier Instances choisi manuellement (null = détection automatique). */
   instancesDir: string | null
   openCurseForgeAfterInstall: boolean
+  /** La proposition de raccourci sur le bureau a déjà reçu une réponse. */
+  shortcutPrompted: boolean
 }
+
+export interface ShortcutStatus {
+  /** Emplacement du raccourci sur le bureau. */
+  desktopPath: string
+  onDesktop: boolean
+}
+
+export type ShortcutLocation = 'desktop' | 'choose'
+
+export type ShortcutResult = { ok: true; path: string } | { ok: false; cancelled: boolean; error?: string }
 
 export type InstallPhase = 'preparing' | 'downloading' | 'verifying' | 'extracting' | 'finalizing'
 
@@ -124,6 +138,8 @@ export interface RendererApi {
   getSettings(): Promise<Settings>
   updateSettings(patch: Partial<Settings>): Promise<Settings>
   pickInstancesDir(): Promise<Settings | null>
+  getShortcutStatus(): Promise<ShortcutStatus>
+  createShortcut(location: ShortcutLocation): Promise<ShortcutResult>
   openPath(path: string): Promise<void>
   openExternal(url: string): Promise<void>
   getAppVersion(): Promise<string>

@@ -6,16 +6,11 @@ import type {
   InstalledModpack,
   InstallProgress,
   ModpackVersion,
-  Settings
+  Settings,
+  ShortcutLocation,
+  ShortcutStatus
 } from '../../shared/types'
-
-export interface Toast {
-  id: number
-  kind: 'success' | 'error' | 'info'
-  title: string
-  message?: string
-  action?: { label: string; run: () => void }
-}
+import type { ToastItem as Toast } from './components/Toasts'
 
 interface State {
   catalog: Catalog | null
@@ -23,6 +18,7 @@ interface State {
   refreshing: boolean
   installed: InstalledModpack[]
   curseForge: CurseForgeStatus | null
+  shortcut: ShortcutStatus | null
   settings: Settings | null
   appVersion: string
   fullscreen: boolean
@@ -43,6 +39,7 @@ interface State {
   setSettingsOpen(open: boolean): void
   updateSettings(patch: Partial<Settings>): Promise<void>
   pickInstancesDir(): Promise<void>
+  createShortcut(location: ShortcutLocation): Promise<void>
   installAppUpdate(): Promise<void>
   pushToast(toast: Omit<Toast, 'id'>): void
   dismissToast(id: number): void
@@ -57,6 +54,7 @@ export const useStore = create<State>((set, get) => ({
   refreshing: false,
   installed: [],
   curseForge: null,
+  shortcut: null,
   settings: null,
   appVersion: '',
   fullscreen: true,
@@ -90,8 +88,12 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async refreshLocal() {
-    const [installed, curseForge] = await Promise.all([window.api.getInstalled(), window.api.getCurseForgeStatus()])
-    set({ installed, curseForge })
+    const [installed, curseForge, shortcut] = await Promise.all([
+      window.api.getInstalled(),
+      window.api.getCurseForgeStatus(),
+      window.api.getShortcutStatus()
+    ])
+    set({ installed, curseForge, shortcut })
   },
 
   async install(version) {
@@ -157,6 +159,21 @@ export const useStore = create<State>((set, get) => ({
     if (settings) {
       set({ settings })
       await get().refreshLocal()
+    }
+  },
+
+  async createShortcut(location) {
+    const result = await window.api.createShortcut(location)
+    if (result.ok) {
+      const onDesktop = result.path.toLowerCase() === get().shortcut?.desktopPath.toLowerCase()
+      get().pushToast({
+        kind: 'success',
+        title: 'Raccourci créé',
+        message: onDesktop ? 'Modpack Downloader est maintenant sur ton bureau.' : result.path
+      })
+      set({ settings: await window.api.getSettings(), shortcut: await window.api.getShortcutStatus() })
+    } else if (!result.cancelled) {
+      get().pushToast({ kind: 'error', title: 'Raccourci non créé', message: result.error })
     }
   },
 

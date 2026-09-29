@@ -16,7 +16,9 @@ win:
 nsis:
   oneClick: true
   perMachine: false
-  createDesktopShortcut: always
+  # Le raccourci du bureau est proposé par l'application elle-même (bureau ou autre emplacement).
+  createDesktopShortcut: false
+  include: build/installer.nsh
   createStartMenuShortcut: true
   shortcutName: Modpack Downloader
   runAfterFinish: true

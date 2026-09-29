@@ -5,7 +5,8 @@ import type { Settings } from '../shared/types'
 
 const DEFAULTS: Settings = {
   instancesDir: null,
-  openCurseForgeAfterInstall: true
+  openCurseForgeAfterInstall: true,
+  shortcutPrompted: false
 }
 
 let cached: Settings | null = null
