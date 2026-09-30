@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { RefreshCw, WifiOff } from 'lucide-react'
+import { CloudUpload, RefreshCw, WifiOff } from 'lucide-react'
 import { useStore } from '../store'
 import { Button } from './Button'
 import { Logo } from './Logo'
@@ -33,6 +33,8 @@ function CenteredMessage({ children }: { children: ReactNode }) {
 export function EmptyView() {
   const refresh = useStore((s) => s.refresh)
   const refreshing = useStore((s) => s.refreshing)
+  const publisher = useStore((s) => s.settings?.role === 'publisher')
+  const openStudio = useStore((s) => s.openStudio)
   return (
     <CenteredMessage>
       <div className="relative">
@@ -41,11 +43,20 @@ export function EmptyView() {
       </div>
       <h2 className="mt-8 font-display text-3xl font-bold tracking-tight">Aucun modpack pour le moment</h2>
       <p className="mt-3 max-w-md text-ink-300">
-        Dès qu’un nouveau modpack sera publié, il apparaîtra ici. Tu pourras l’installer en un clic.
+        {publisher
+          ? 'Ton dépôt ne contient encore aucun modpack. Publie le premier avec le Modpack Studio.'
+          : 'Dès qu’un nouveau modpack sera publié, il apparaîtra ici. Tu pourras l’installer en un clic.'}
       </p>
-      <Button className="mt-8" icon={RefreshCw} disabled={refreshing} onClick={() => void refresh(true)}>
-        Actualiser
-      </Button>
+      <div className="mt-8 flex gap-3">
+        {publisher && (
+          <Button variant="primary" icon={CloudUpload} onClick={openStudio}>
+            Ouvrir le Studio
+          </Button>
+        )}
+        <Button icon={RefreshCw} disabled={refreshing} onClick={() => void refresh(true)}>
+          Actualiser
+        </Button>
+      </div>
     </CenteredMessage>
   )
 }

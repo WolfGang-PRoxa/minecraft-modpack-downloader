@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Configuration d'artefact SignPath de l'installeur Windows : à définir comme configuration par défaut
+  du projet sur signpath.io. L'artefact envoyé par la CI (release-app.yml) est un zip qui ne contient
+  que l'installeur NSIS. La CI transmet la version, qui doit correspondre aux métadonnées du fichier.
+-->
+<artifact-configuration xmlns="http://signpath.io/artifact-configuration/v1">
+  <parameters>
+    <parameter name="version" />
+  </parameters>
+  <zip-file>
+    <pe-file path="Modpack-Downloader-Setup-${version}.exe" product-name="Modpack Downloader" product-version="${version}">
+      <authenticode-sign/>
+    </pe-file>
+  </zip-file>
+</artifact-configuration>

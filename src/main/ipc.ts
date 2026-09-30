@@ -1,13 +1,18 @@
 import { BrowserWindow, dialog, ipcMain, shell, app } from 'electron'
 import type { AppUpdateInfo, ModpackVersion, Settings, ShortcutLocation } from '../shared/types'
 import { installAppUpdate } from './appUpdate'
+import { registerAuthIpc } from './authIpc'
 import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir } from './curseforge'
 import { getCatalog } from './github'
 import { cancelInstall, installModpack, listInstalled } from './installer'
+import { registerRoleIpc } from './roleIpc'
 import { getSettings, updateSettings } from './settings'
 import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
 
 export function registerIpc(getWindow: () => BrowserWindow | null): void {
+  registerAuthIpc()
+  registerRoleIpc()
+
   const send = (channel: string, payload: unknown) => {
     const win = getWindow()
     if (win && !win.isDestroyed()) win.webContents.send(channel, payload)
@@ -36,6 +41,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
       allowed.openCurseForgeAfterInstall = patch.openCurseForgeAfterInstall
     }
     if (typeof patch.shortcutPrompted === 'boolean') allowed.shortcutPrompted = patch.shortcutPrompted
+    if (patch.lastView === 'library' || patch.lastView === 'studio') allowed.lastView = patch.lastView
     return updateSettings(allowed)
   })
   ipcMain.handle('settings:pickInstancesDir', async () => {
@@ -50,6 +56,8 @@ export function registerIpc(getWindow: () => BrowserWindow | null): void {
     if (result.canceled || !result.filePaths[0]) return null
     return updateSettings({ instancesDir: result.filePaths[0] })
   })
+
+  ipcMain.handle('app:launchView', () => (process.argv.includes('--studio') ? 'studio' : null))
 
   ipcMain.handle('shortcut:status', () => shortcutStatus(PLAYER_SHORTCUT))
   ipcMain.handle('shortcut:create', async (_e, location: ShortcutLocation) => {

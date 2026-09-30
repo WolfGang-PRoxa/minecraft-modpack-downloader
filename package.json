@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "description": "Télécharge les modpacks Minecraft publiés sur GitHub et les ajoute à CurseForge.",
   "author": "WolfGang-PRoxa",
+  "license": "MIT",
   "private": true,
   "main": "./out/main/index.js",
   "scripts": {

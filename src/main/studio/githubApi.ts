@@ -1,17 +1,12 @@
-import { execFile } from 'node:child_process'
 import { createReadStream } from 'node:fs'
-import { readFile, stat } from 'node:fs/promises'
+import { stat } from 'node:fs/promises'
 import { request as httpRequest } from 'node:http'
 import { request as httpsRequest } from 'node:https'
-import { join } from 'node:path'
-import { GITHUB_OWNER, GITHUB_REPO } from '../../shared/config'
+import { repoSlug } from '../../shared/repo'
 import type { GhAsset, GhRelease } from '../../shared/releases'
+import type { RepoRef } from '../../shared/types'
+import { GITHUB_HEADERS, repoApiBase, userApiUrl } from '../githubEnv'
 import { StudioError } from './analyze'
-
-export const GITHUB_API = `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`
-const USER_AGENT = 'ModpackStudio'
-
-export type TokenSource = 'env' | 'studio' | 'dotenv' | 'gh'
 
 export class GitHubError extends StudioError {
   constructor(
@@ -28,35 +23,7 @@ export class CancelledError extends StudioError {
   }
 }
 
-function ghCliToken(): Promise<string | null> {
-  return new Promise((resolvePromise) => {
-    execFile('gh', ['auth', 'token'], { windowsHide: true, timeout: 10_000 }, (err, stdout) =>
-      resolvePromise(err ? null : stdout.trim() || null)
-    )
-  })
-}
-
-/**
- * Jeton utilisé pour publier, par ordre de priorité : variable GITHUB_TOKEN, jeton enregistré
- * dans le studio, fichier .env (scripts), puis la session de GitHub CLI (`gh auth login`).
- */
-export async function resolveToken(options: {
-  stored?: string | null
-  dotenvDir?: string
-}): Promise<{ token: string; source: TokenSource } | null> {
-  const env = process.env.GITHUB_TOKEN?.trim()
-  if (env) return { token: env, source: 'env' }
-  if (options.stored) return { token: options.stored, source: 'studio' }
-  if (options.dotenvDir) {
-    const text = await readFile(join(options.dotenvDir, '.env'), 'utf8').catch(() => '')
-    const match = /^GITHUB_TOKEN=(.+)$/m.exec(text)
-    if (match?.[1].trim()) return { token: match[1].trim(), source: 'dotenv' }
-  }
-  const gh = await ghCliToken()
-  return gh ? { token: gh, source: 'gh' } : null
-}
-
-async function toGitHubError(res: Response, method: string, url: string): Promise<GitHubError> {
+async function toGitHubError(res: Response, method: string, url: string, repo: RepoRef): Promise<GitHubError> {
   let detail = ''
   try {
     const json = (await res.json()) as { message?: string; errors?: Array<{ message?: string; code?: string }> }
@@ -67,18 +34,18 @@ async function toGitHubError(res: Response, method: string, url: string): Promis
   const where = `${method} ${new URL(url).pathname}`
   switch (res.status) {
     case 401:
-      return new GitHubError('GitHub refuse le jeton (expiré ou révoqué). Mets-en un nouveau dans les paramètres.', 401)
+      return new GitHubError('GitHub refuse la connexion (jeton expiré ou révoqué) : reconnecte-toi dans les paramètres.', 401)
     case 403:
       if (res.headers.get('x-ratelimit-remaining') === '0') {
         return new GitHubError('Limite de requêtes GitHub atteinte : réessaie dans quelques minutes.', 403)
       }
       return new GitHubError(
-        `GitHub refuse l’opération (${where}) : le jeton doit avoir l’accès « Contents : Read and write » sur le dépôt.`,
+        `GitHub refuse l’opération (${where}) : le compte connecté doit pouvoir publier sur ${repoSlug(repo)}.`,
         403
       )
     case 404:
       return new GitHubError(
-        `Introuvable sur GitHub (${where}) : vérifie que le jeton a accès au dépôt ${GITHUB_OWNER}/${GITHUB_REPO}.`,
+        `Introuvable sur GitHub (${where}) : vérifie que le compte connecté a accès au dépôt ${repoSlug(repo)}.`,
         404
       )
     default:
@@ -94,19 +61,17 @@ export interface UploadOptions {
 }
 
 export class GitHubClient {
+  readonly apiBase: string
+
   constructor(
     private readonly token: string,
-    readonly apiBase: string = GITHUB_API
-  ) {}
+    readonly repo: RepoRef
+  ) {
+    this.apiBase = repoApiBase(repo)
+  }
 
   private headers(extra: Record<string, string> = {}): Record<string, string> {
-    return {
-      Accept: 'application/vnd.github+json',
-      'X-GitHub-Api-Version': '2022-11-28',
-      'User-Agent': USER_AGENT,
-      Authorization: `Bearer ${this.token}`,
-      ...extra
-    }
+    return { ...GITHUB_HEADERS, Authorization: `Bearer ${this.token}`, ...extra }
   }
 
   private async send(method: string, url: string, init: RequestInit = {}): Promise<Response> {
@@ -116,7 +81,7 @@ export class GitHubClient {
     } catch {
       throw new StudioError('Impossible de joindre GitHub. Vérifie ta connexion internet.')
     }
-    if (!res.ok && res.status !== 302) throw await toGitHubError(res, method, url)
+    if (!res.ok && res.status !== 302) throw await toGitHubError(res, method, url, this.repo)
     return res
   }
 
@@ -135,9 +100,8 @@ export class GitHubClient {
   }
 
   async getLogin(): Promise<string | null> {
-    const userUrl = this.apiBase.replace(/\/repos\/[^/]+\/[^/]+\/?$/, '/user')
     try {
-      return (await this.request<{ login: string }>('GET', userUrl)).login
+      return (await this.request<{ login: string }>('GET', userApiUrl())).login
     } catch {
       return null
     }
@@ -200,7 +164,7 @@ export class GitHubClient {
     const location = res.headers.get('location')
     if (res.status !== 302 || !location) return res.text()
     // Le fichier est servi par un autre domaine, qui refuse l'en-tête Authorization.
-    const file = await this.send('GET', location, { headers: { 'User-Agent': USER_AGENT } })
+    const file = await this.send('GET', location, { headers: { 'User-Agent': GITHUB_HEADERS['User-Agent'] } })
     return file.text()
   }
 

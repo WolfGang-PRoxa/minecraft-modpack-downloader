@@ -8,7 +8,7 @@ export interface ShortcutSpec {
   /** Nom du fichier .lnk, sans extension. */
   name: string
   description: string
-  /** Arguments passés à l'application (ex. --studio). */
+  /** Arguments passés à l'application. */
   args: string[]
   appUserModelId: string
 }
@@ -18,13 +18,6 @@ export const PLAYER_SHORTCUT: ShortcutSpec = {
   description: 'Installer les modpacks Minecraft dans CurseForge',
   args: [],
   appUserModelId: 'com.wolfgangproxa.modpackdownloader'
-}
-
-export const STUDIO_SHORTCUT: ShortcutSpec = {
-  name: 'Modpack Studio',
-  description: 'Ranger et publier les modpacks sur GitHub',
-  args: ['--studio'],
-  appUserModelId: 'com.wolfgangproxa.modpackstudio'
 }
 
 const quote = (arg: string) => (/[\s"]/.test(arg) ? `"${arg.replace(/"/g, '\\"')}"` : arg)

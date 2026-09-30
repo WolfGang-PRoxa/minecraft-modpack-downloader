@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { join } from 'node:path'
-import { APP_TAG_PREFIX, GITHUB_OWNER, GITHUB_REPO } from '../shared/config'
+import { APP_REPO, APP_TAG_PREFIX } from '../shared/config'
 import {
   compareVersions,
   findManifestAsset,
@@ -10,12 +10,12 @@ import {
   type GhAsset,
   type GhRelease
 } from '../shared/releases'
-import type { AppUpdateInfo, Catalog, ModpackManifest, ModpackVersion } from '../shared/types'
+import { repoSlug } from '../shared/repo'
+import type { AppUpdateInfo, Catalog, ModpackManifest, ModpackVersion, RepoRef } from '../shared/types'
 import { readJson, writeJsonAtomic } from './fsutil'
+import { repoApiBase } from './githubEnv'
+import { getSettings } from './settings'
 
-// En développement, MPD_GITHUB_API permet de pointer vers un faux serveur de releases.
-const API_BASE =
-  (!app.isPackaged && process.env.MPD_GITHUB_API) || `https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}`
 const MAX_PAGES = 5
 const MEMORY_TTL_MS = 60_000
 
@@ -29,7 +29,7 @@ type ManifestCache = Record<string, ModpackManifest>
 
 let httpCache: HttpCache | null = null
 let manifestCache: ManifestCache | null = null
-let lastCatalog: { at: number; catalog: Catalog } | null = null
+let lastCatalog: { at: number; base: string; catalog: Catalog } | null = null
 
 const cacheFile = (name: string) => join(app.getPath('userData'), 'cache', name)
 
@@ -45,7 +45,7 @@ async function loadCaches(): Promise<void> {
 class GitHubError extends Error {}
 
 /** GET sur l'API GitHub avec cache ETag : une réponse 304 ne consomme pas le quota. */
-async function apiGet<T>(url: string): Promise<T> {
+async function apiGet<T>(url: string, repo: RepoRef): Promise<T> {
   const cached = httpCache![url]
   const headers: Record<string, string> = {
     Accept: 'application/vnd.github+json',
@@ -64,7 +64,7 @@ async function apiGet<T>(url: string): Promise<T> {
     throw new GitHubError(`Limite de requêtes GitHub atteinte. Réessaie après ${when}.`)
   }
   if (res.status === 404) {
-    throw new GitHubError(`Dépôt ${GITHUB_OWNER}/${GITHUB_REPO} introuvable (il doit être public).`)
+    throw new GitHubError(`Dépôt ${repoSlug(repo)} introuvable (il doit être public).`)
   }
   if (!res.ok) throw new GitHubError(`GitHub a répondu ${res.status} ${res.statusText}.`)
 
@@ -74,10 +74,10 @@ async function apiGet<T>(url: string): Promise<T> {
   return data
 }
 
-async function fetchReleases(): Promise<GhRelease[]> {
+async function fetchReleases(repo: RepoRef): Promise<GhRelease[]> {
   const releases: GhRelease[] = []
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const batch = await apiGet<GhRelease[]>(`${API_BASE}/releases?per_page=100&page=${page}`)
+    const batch = await apiGet<GhRelease[]>(`${repoApiBase(repo)}/releases?per_page=100&page=${page}`, repo)
     releases.push(...batch)
     if (batch.length < 100) break
   }
@@ -85,10 +85,10 @@ async function fetchReleases(): Promise<GhRelease[]> {
 }
 
 /** Releases disponibles dans le cache disque (utilisé hors ligne). */
-function cachedReleases(): GhRelease[] {
+function cachedReleases(repo: RepoRef): GhRelease[] {
   const releases: GhRelease[] = []
   for (let page = 1; page <= MAX_PAGES; page++) {
-    const entry = httpCache![`${API_BASE}/releases?per_page=100&page=${page}`]
+    const entry = httpCache![`${repoApiBase(repo)}/releases?per_page=100&page=${page}`]
     if (!entry) break
     const batch = entry.data as GhRelease[]
     releases.push(...batch)
@@ -149,32 +149,41 @@ function findAppUpdate(releases: GhRelease[]): AppUpdateInfo | null {
 }
 
 export async function getCatalog(force = false): Promise<Catalog> {
-  if (!force && lastCatalog && Date.now() - lastCatalog.at < MEMORY_TTL_MS) return lastCatalog.catalog
+  const { repo } = await getSettings()
+  const base = repoApiBase(repo)
+  if (!force && lastCatalog?.base === base && Date.now() - lastCatalog.at < MEMORY_TTL_MS) return lastCatalog.catalog
   await loadCaches()
 
   let releases: GhRelease[]
   let error: string | null = null
   let offline = false
   try {
-    releases = await fetchReleases()
+    releases = await fetchReleases(repo)
   } catch (err) {
     offline = true
     error =
       err instanceof GitHubError
         ? err.message
         : 'Impossible de joindre GitHub. Vérifie ta connexion internet.'
-    releases = cachedReleases()
+    releases = cachedReleases(repo)
+  }
+
+  // Les mises à jour de l'application viennent toujours de son propre dépôt.
+  let appReleases = releases
+  if (repoApiBase(APP_REPO) !== base) {
+    appReleases = await fetchReleases(APP_REPO).catch(() => cachedReleases(APP_REPO))
   }
 
   const catalog: Catalog = {
+    repo,
     modpacks: groupModpacks(await buildModpackVersions(releases, offline)),
-    appUpdate: findAppUpdate(releases),
+    appUpdate: findAppUpdate(appReleases),
     fetchedAt: offline ? null : new Date().toISOString(),
     error
   }
 
   if (!offline) {
-    lastCatalog = { at: Date.now(), catalog }
+    lastCatalog = { at: Date.now(), base, catalog }
     await Promise.all([
       writeJsonAtomic(cacheFile('github-http.json'), httpCache),
       writeJsonAtomic(cacheFile('manifests.json'), manifestCache)

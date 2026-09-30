@@ -1,32 +1,22 @@
 import { homedir } from 'node:os'
 import { join } from 'node:path'
-import { readJson, writeJsonAtomic } from '../fsutil'
-
-export const STUDIO_NAME = 'Modpack Studio'
-
-/** Dossier de données du studio, partagé avec les scripts `modpacks:*` (%APPDATA%\Modpack Studio). */
-export function studioDataDir(): string {
-  return join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), STUDIO_NAME)
-}
+import { readJson } from '../fsutil'
+import { getSettings, updateSettings } from '../settings'
 
 export const defaultWorkspaceDir = (): string => join(homedir(), 'Modpacks')
 
-export interface StudioSettingsFile {
-  workspaceDir: string | null
-  /** Jeton GitHub chiffré par Windows (safeStorage), en base64. */
-  encryptedToken: string | null
+/** Ancien réglage, du temps où le studio avait sa propre fenêtre : repris tant qu'aucun dossier n'est choisi. */
+const legacyFile = () =>
+  join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Modpack Studio', 'studio-settings.json')
+
+/** Dossier qui contient un sous-dossier par modpack (réglage commun à l'application et aux scripts). */
+export async function loadWorkspaceDir(): Promise<string | null> {
+  const { workspaceDir } = await getSettings()
+  if (workspaceDir) return workspaceDir
+  const legacy = await readJson<{ workspaceDir?: unknown }>(legacyFile())
+  return typeof legacy?.workspaceDir === 'string' && legacy.workspaceDir ? legacy.workspaceDir : null
 }
 
-const settingsFile = () => join(studioDataDir(), 'studio-settings.json')
-
-export async function loadStudioSettings(): Promise<StudioSettingsFile> {
-  const data = await readJson<Partial<StudioSettingsFile>>(settingsFile())
-  return {
-    workspaceDir: typeof data?.workspaceDir === 'string' && data.workspaceDir ? data.workspaceDir : null,
-    encryptedToken: typeof data?.encryptedToken === 'string' && data.encryptedToken ? data.encryptedToken : null
-  }
-}
-
-export async function saveStudioSettings(settings: StudioSettingsFile): Promise<void> {
-  await writeJsonAtomic(settingsFile(), settings)
+export async function saveWorkspaceDir(dir: string): Promise<void> {
+  await updateSettings({ workspaceDir: dir })
 }

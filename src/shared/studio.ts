@@ -1,12 +1,13 @@
 // Types du Modpack Studio : l'outil de l'auteur pour ranger ses zips et les publier sur GitHub.
-import type { ShortcutLocation, ShortcutResult, ShortcutStatus } from './types'
+import type { CredentialSource, RepoRef, UserRole } from './types'
 
 export interface StudioSettings {
   /** Dossier qui contient un sous-dossier par modpack (null tant qu'il n'a pas été choisi). */
   workspaceDir: string | null
   defaultWorkspaceDir: string
-  /** Un jeton a été enregistré dans le studio (sinon : GITHUB_TOKEN ou GitHub CLI). */
-  hasStoredToken: boolean
+  /** Rôle et dépôt choisis dans l'application (Paramètres → Utilisation). */
+  role: UserRole | null
+  repo: RepoRef
 }
 
 /** Ce qu'on lit dans un zip de modpack. */
@@ -74,7 +75,7 @@ export interface GitHubStatus {
   repo: string
   repoUrl: string
   login: string | null
-  tokenSource: 'env' | 'studio' | 'dotenv' | 'gh' | null
+  tokenSource: CredentialSource | null
   repoPrivate: boolean | null
   canPush: boolean | null
   error: string | null
@@ -185,7 +186,6 @@ export interface StudioApi {
 
   pickWorkspaceDir(): Promise<boolean>
   useDefaultWorkspace(): Promise<ActionResult>
-  setToken(token: string | null): Promise<GitHubStatus>
 
   createPack(name: string): Promise<ActionResult>
   updatePackInfo(folder: string, info: { name: string; description: string }): Promise<ActionResult>
@@ -206,14 +206,6 @@ export interface StudioApi {
   cancelZip(): Promise<void>
   onZipProgress(listener: (progress: ZipProgress) => void): () => void
 
-  getShortcutStatus(): Promise<ShortcutStatus>
-  createShortcut(location: ShortcutLocation): Promise<ShortcutResult>
-
   openPath(path: string): Promise<void>
-  openExternal(url: string): Promise<void>
   getPathForFile(file: File): string
-
-  minimizeWindow(): void
-  toggleMaximize(): void
-  closeWindow(): void
 }

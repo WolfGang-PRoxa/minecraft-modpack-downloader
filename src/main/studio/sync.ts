@@ -1,6 +1,6 @@
 import { createHash } from 'node:crypto'
 import { extname } from 'node:path'
-import { GITHUB_OWNER, MODPACK_MANIFEST_ASSET, MODPACK_TAG_PREFIX } from '../../shared/config'
+import { MODPACK_MANIFEST_ASSET, MODPACK_TAG_PREFIX } from '../../shared/config'
 import { formatLoader } from '../../shared/format'
 import {
   findManifestAsset,
@@ -95,7 +95,7 @@ export function releaseBody(notes: string, analysis: ZipAnalysis): string {
   return `${text}${text && footer ? '\n\n---\n' : ''}${footer ? `_${footer}_` : ''}`
 }
 
-function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnalysis }): Desired {
+function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnalysis }, author: string): Desired {
   const { id, name, description, notes } = pack.meta
   const number = String(version.number)
   const coverName = pack.cover ? `cover${extname(pack.cover.fileName).toLowerCase()}` : null
@@ -123,7 +123,7 @@ function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnal
       archiveSha256: a.sha256,
       cover: coverName,
       coverSha256: pack.cover?.sha256 ?? null,
-      author: GITHUB_OWNER,
+      author,
       createdAt: ''
     }
   }
@@ -189,7 +189,8 @@ function formatSize(bytes: number): string {
   return `${bytes.toLocaleString('fr-FR', { maximumFractionDigits: 1 })} ${units[i]}`
 }
 
-export function computePlan(workspace: LocalWorkspace, remote: RemoteState): InternalPlan {
+/** `author` : propriétaire du dépôt, inscrit dans chaque modpack.json. */
+export function computePlan(workspace: LocalWorkspace, remote: RemoteState, author: string): InternalPlan {
   const desired = new Map<string, Desired>()
   const blockedIds = new Set<string>()
   const blockedTags = new Set<string>()
@@ -205,7 +206,7 @@ export function computePlan(workspace: LocalWorkspace, remote: RemoteState): Int
     }
     for (const version of pack.versions) {
       const tag = modpackTag(pack.meta.id, String(version.number))
-      if (version.analysis) desired.set(tag, desiredFor(pack, version as Desired['version']))
+      if (version.analysis) desired.set(tag, desiredFor(pack, version as Desired['version'], author))
       else blockedTags.add(tag)
     }
   }

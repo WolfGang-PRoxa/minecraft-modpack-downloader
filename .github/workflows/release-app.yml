@@ -1,4 +1,5 @@
-# Construit l'installeur Windows et le publie dans une release quand un tag app-vX.Y.Z est poussé.
+# Construit l'installeur Windows, le fait signer par SignPath (si c'est configuré) et le publie
+# quand un tag app-vX.Y.Z est poussé.
 name: Publier l'application
 
 on:
@@ -7,10 +8,16 @@ on:
 
 permissions:
   contents: write
+  actions: read
 
 jobs:
   release:
     runs-on: windows-latest
+    # La signature attend l'approbation manuelle de la demande sur signpath.io.
+    timeout-minutes: 300
+    env:
+      # La signature s'active dès que le secret SIGNPATH_API_TOKEN existe (README, « Signature du code »).
+      SIGNPATH_ENABLED: ${{ secrets.SIGNPATH_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v5
 
@@ -30,17 +37,53 @@ jobs:
             exit 1
           fi
           echo "version=$PKG_VERSION" >> "$GITHUB_OUTPUT"
+          echo "installer=Modpack-Downloader-Setup-$PKG_VERSION.exe" >> "$GITHUB_OUTPUT"
 
       - run: npm ci
 
       - run: npm run build:win
 
+      - name: Préparer l'installeur à signer
+        id: unsigned
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: installeur-non-signe
+          path: dist/${{ steps.version.outputs.installer }}
+          if-no-files-found: error
+          retention-days: 1
+
+      - name: Signer avec SignPath (approuver la demande sur signpath.io)
+        if: env.SIGNPATH_ENABLED == 'true'
+        uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ vars.SIGNPATH_PROJECT_SLUG }}
+          signing-policy-slug: ${{ vars.SIGNPATH_SIGNING_POLICY_SLUG }}
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          parameters: |
+            version: "${{ steps.version.outputs.version }}"
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 14400
+          output-artifact-directory: dist/signed
+
+      - name: Remplacer par l'installeur signé et vérifier la signature
+        if: env.SIGNPATH_ENABLED == 'true'
+        shell: pwsh
+        run: |
+          $name = '${{ steps.version.outputs.installer }}'
+          Copy-Item "dist/signed/$name" "dist/$name" -Force
+          $signature = Get-AuthenticodeSignature "dist/$name"
+          if ($signature.Status -ne 'Valid') { throw "Signature invalide : $($signature.StatusMessage)" }
+          Write-Host "Signé par : $($signature.SignerCertificate.Subject)"
+
       - uses: softprops/action-gh-release@v2
         with:
           name: Modpack Downloader ${{ steps.version.outputs.version }}
-          files: dist/Modpack-Downloader-Setup-*.exe
+          files: dist/${{ steps.version.outputs.installer }}
           make_latest: true
           body: |
-            Télécharge **Modpack-Downloader-Setup-${{ steps.version.outputs.version }}.exe** ci-dessous et lance-le.
+            Télécharge **${{ steps.version.outputs.installer }}** ci-dessous et lance-le.
 
             Windows peut afficher « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**.

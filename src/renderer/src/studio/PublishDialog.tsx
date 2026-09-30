@@ -5,6 +5,7 @@ import type { PublishProgress, PublishResult, SyncAction, SyncActionKind } from 
 import { Button } from '../components/Button'
 import { formatBytes, formatSpeed } from '../lib/format'
 import { Modal, ProgressBar, Spinner } from './Modal'
+import { useStore } from '../store'
 import { errorMessage, useStudio } from './store'
 
 const KINDS: Record<SyncActionKind, { title: string; step: string; icon: LucideIcon; tone: string }> = {
@@ -128,6 +129,8 @@ export function PublishDialog() {
     setResult(outcome)
     setPhase('done')
     void refresh()
+    // La bibliothèque montre aussitôt ce qui vient d'être publié.
+    if (outcome.done > 0) void useStore.getState().refresh(true)
   }
 
   if (phase === 'checking') {

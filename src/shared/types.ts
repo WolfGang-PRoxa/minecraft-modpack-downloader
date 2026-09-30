@@ -54,6 +54,8 @@ export interface AppUpdateInfo {
 }
 
 export interface Catalog {
+  /** Dépôt d'où viennent les modpacks. */
+  repo: RepoRef
   modpacks: Modpack[]
   appUpdate: AppUpdateInfo | null
   fetchedAt: string | null
@@ -86,13 +88,78 @@ export interface CurseForgeStatus {
   instancesDirExists: boolean
 }
 
+export interface RepoRef {
+  owner: string
+  name: string
+}
+
+/** Récepteur : installe les modpacks. Publieur : les publie aussi, avec le Modpack Studio. */
+export type UserRole = 'receiver' | 'publisher'
+
+/** Vues de la fenêtre : la bibliothèque (tout le monde) et le studio (publieurs). */
+export type AppView = 'library' | 'studio'
+
 export interface Settings {
   /** Dossier Instances choisi manuellement (null = détection automatique). */
   instancesDir: string | null
   openCurseForgeAfterInstall: boolean
   /** La proposition de raccourci sur le bureau a déjà reçu une réponse. */
   shortcutPrompted: boolean
+  /** null tant que le premier lancement n'a pas eu lieu. */
+  role: UserRole | null
+  /** Dépôt des modpacks : lu par l'application, géré par le studio pour un publieur. */
+  repo: RepoRef
+  /** Dossier des modpacks du studio (un sous-dossier par modpack). */
+  workspaceDir: string | null
+  /** Dernière vue affichée, rouverte au lancement suivant. */
+  lastView: AppView
 }
+
+/** D'où vient la connexion GitHub : connexion faite dans l'application, ou repli sur une session existante. */
+export type CredentialSource = 'login' | 'env' | 'dotenv' | 'gh'
+
+export interface GitHubAccount {
+  login: string
+  avatarUrl: string | null
+  source: CredentialSource
+}
+
+export interface AuthStatus {
+  account: GitHubAccount | null
+  error: string | null
+  /** « Se connecter avec GitHub » est configuré (sinon, seul le jeton est proposé). */
+  deviceLoginAvailable: boolean
+}
+
+export interface DeviceLogin {
+  userCode: string
+  verificationUri: string
+  expiresAt: string
+}
+
+export type LoginResult = { ok: true; account: GitHubAccount } | { ok: false; cancelled: boolean; error: string }
+
+/** Connexion GitHub, commune à l'application et au studio. */
+export interface AuthApi {
+  getAuthStatus(): Promise<AuthStatus>
+  /** Démarre la connexion par code : ouvre github.com/login/device dans le navigateur. */
+  startDeviceLogin(): Promise<{ ok: true; login: DeviceLogin } | { ok: false; error: string }>
+  /** Attend que le code soit validé sur GitHub. */
+  waitDeviceLogin(): Promise<LoginResult>
+  cancelDeviceLogin(): Promise<void>
+  loginWithToken(token: string): Promise<LoginResult>
+  logout(): Promise<AuthStatus>
+}
+
+export interface RepoInfo {
+  repo: RepoRef
+  ownerAvatarUrl: string | null
+  private: boolean
+}
+
+export type RoleResult =
+  | { ok: true; settings: Settings; account: GitHubAccount | null; warning: string | null }
+  | { ok: false; error: string; needsLogin: boolean }
 
 export interface ShortcutStatus {
   /** Emplacement du raccourci sur le bureau. */
@@ -126,8 +193,20 @@ export interface AppUpdateProgress {
   total: number
 }
 
+/** Choix du rôle, commun à l'application et au studio. */
+export interface RoleApi {
+  /** Passe en récepteur ; un dépôt peut être fourni pour suivre les modpacks d'un autre publieur. */
+  becomeReceiver(repo: string | null): Promise<RoleResult>
+  /** Passe en publieur après avoir vérifié que le compte GitHub connecté peut publier sur le dépôt. */
+  becomePublisher(repo: string): Promise<RoleResult>
+}
+
 /** API exposée au renderer par le preload (`window.api`). */
-export interface RendererApi {
+export interface RendererApi extends AuthApi, RoleApi {
+  /** Vue demandée au lancement (`--studio`), sinon null. */
+  getLaunchView(): Promise<AppView | null>
+  /** L'application a été relancée alors qu'elle tournait : relire l'état, et ouvrir la vue demandée. */
+  onActivated(listener: (view: AppView | null) => void): () => void
   getCatalog(force?: boolean): Promise<Catalog>
   getInstalled(): Promise<InstalledModpack[]>
   install(version: ModpackVersion): Promise<InstallResult>

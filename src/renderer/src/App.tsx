@@ -7,6 +7,8 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { EmptyView, ErrorView, LoadingView } from './components/States'
 import { TitleBar } from './components/TitleBar'
 import { Toasts } from './components/Toasts'
+import { SetupView } from './components/Usage'
+import { StudioView } from './studio/StudioView'
 import { useStore } from './store'
 
 function Library() {
@@ -44,6 +46,9 @@ function Library() {
 export function App() {
   const init = useStore((s) => s.init)
   const refreshLocal = useStore((s) => s.refreshLocal)
+  // Premier lancement : le rôle n'est pas encore choisi.
+  const needsSetup = useStore((s) => s.settings !== null && s.settings.role === null)
+  const studio = useStore((s) => s.view === 'studio' && s.settings?.role === 'publisher')
 
   useEffect(() => {
     void init()
@@ -63,11 +68,19 @@ export function App() {
 
       <TitleBar />
       <main className="relative flex-1 overflow-y-auto">
-        <AppUpdateBanner />
-        <CurseForgeMissingBanner />
-        <OfflineBanner />
-        <ShortcutBanner />
-        <Library />
+        {needsSetup ? (
+          <SetupView />
+        ) : studio ? (
+          <StudioView />
+        ) : (
+          <>
+            <AppUpdateBanner />
+            <CurseForgeMissingBanner />
+            <OfflineBanner />
+            <ShortcutBanner />
+            <Library />
+          </>
+        )}
       </main>
 
       <DetailsPanel />

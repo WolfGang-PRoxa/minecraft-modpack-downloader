@@ -1,8 +1,10 @@
 import { useEffect, type ReactNode } from 'react'
 import { ExternalLink, FolderCog, FolderOpen, Monitor, RotateCcw, X } from 'lucide-react'
-import { CURSEFORGE_DOWNLOAD_URL, GITHUB_REPO_URL } from '../../../shared/config'
+import { APP_REPO_URL, CURSEFORGE_DOWNLOAD_URL } from '../../../shared/config'
 import { useStore } from '../store'
 import { Button, IconButton } from './Button'
+import { CommandLineHint, WorkspaceFolderSetting } from '../studio/StudioSettings'
+import { PlayerUsageSection } from './Usage'
 
 const SOURCE_LABELS = {
   settings: 'Choisi manuellement',
@@ -44,6 +46,7 @@ export function SettingsDialog() {
   const appVersion = useStore((s) => s.appVersion)
   const updateSettings = useStore((s) => s.updateSettings)
   const pickInstancesDir = useStore((s) => s.pickInstancesDir)
+  const publisher = useStore((s) => s.settings?.role === 'publisher')
   const shortcut = useStore((s) => s.shortcut)
   const createShortcut = useStore((s) => s.createShortcut)
 
@@ -62,12 +65,22 @@ export function SettingsDialog() {
       <div
         role="dialog"
         aria-label="Paramètres"
-        className="animate-rise relative w-full max-w-xl rounded-3xl bg-ink-850 p-8 shadow-2xl ring-1 ring-white/10"
+        className="animate-rise relative max-h-[calc(100vh-3rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-ink-850 p-8 shadow-2xl ring-1 ring-white/10"
       >
         <div className="mb-6 flex items-center justify-between">
           <h2 className="font-display text-2xl font-bold tracking-tight">Paramètres</h2>
           <IconButton icon={X} label="Fermer" onClick={() => setOpen(false)} />
         </div>
+
+        <Section title="Utilisation">
+          <PlayerUsageSection />
+        </Section>
+
+        {publisher && (
+          <Section title="Dossier des modpacks">
+            <WorkspaceFolderSetting />
+          </Section>
+        )}
 
         <Section title="CurseForge">
           {curseForge?.installed ? (
@@ -150,10 +163,16 @@ export function SettingsDialog() {
           </div>
         </Section>
 
+        {publisher && (
+          <Section title="En ligne de commande">
+            <CommandLineHint />
+          </Section>
+        )}
+
         <Section title="À propos">
           <div className="flex items-center justify-between">
             <p className="text-sm text-ink-300">Modpack Downloader v{appVersion}</p>
-            <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void window.api.openExternal(GITHUB_REPO_URL)}>
+            <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void window.api.openExternal(APP_REPO_URL)}>
               Dépôt GitHub
             </Button>
           </div>

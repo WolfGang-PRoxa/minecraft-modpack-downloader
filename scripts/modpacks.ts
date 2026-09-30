@@ -5,23 +5,28 @@
 //                               mise à jour, suppression des versions dont le zip a disparu)
 //
 // Options : --dir <dossier>   dossier des modpacks (par défaut : celui choisi dans le studio)
+//           --repo <o/nom>    dépôt GitHub (par défaut : celui choisi dans l'application)
 //           --yes / -y        ne pas demander de confirmation
 //           --dry-run         (publier) afficher ce qui changerait, sans rien faire
 import { confirm } from '@inquirer/prompts'
 import { existsSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { parseArgs } from 'node:util'
-import { GITHUB_OWNER, GITHUB_REPO } from '../src/shared/config'
+import { parseRepo, repoSlug } from '../src/shared/repo'
 import type { PublishProgress, SyncActionKind } from '../src/shared/studio'
+import type { RepoRef } from '../src/shared/types'
+import { resolveCredential } from '../src/main/auth'
+import { setGitHubApiOverride } from '../src/main/githubEnv'
+import { getSettings } from '../src/main/settings'
 import { describeError } from '../src/main/studio/analyze'
-import { GITHUB_API, resolveToken } from '../src/main/studio/githubApi'
 import { StudioService } from '../src/main/studio/service'
-import { defaultWorkspaceDir, loadStudioSettings } from '../src/main/studio/settings'
+import { defaultWorkspaceDir, loadWorkspaceDir } from '../src/main/studio/settings'
 
 const { values: args, positionals } = parseArgs({
   allowPositionals: true,
   options: {
     dir: { type: 'string' },
+    repo: { type: 'string' },
     yes: { type: 'boolean', short: 'y', default: false },
     'dry-run': { type: 'boolean', default: false }
   }
@@ -49,21 +54,33 @@ function formatBytes(bytes: number): string {
 async function workspaceDir(): Promise<string> {
   if (args.dir) return resolve(args.dir)
   if (process.env.MODPACKS_DIR) return resolve(process.env.MODPACKS_DIR)
-  const fromStudio = (await loadStudioSettings()).workspaceDir
+  const fromStudio = await loadWorkspaceDir()
   if (fromStudio) return fromStudio
   if (existsSync(defaultWorkspaceDir())) return defaultWorkspaceDir()
   throw new Error(`Aucun dossier de modpacks : lance le studio (npm run studio) ou passe --dir <dossier>.`)
 }
 
+setGitHubApiOverride(process.env.MPD_GITHUB_API)
+
+async function repository(): Promise<RepoRef> {
+  if (!args.repo) return (await getSettings()).repo
+  const repo = parseRepo(args.repo)
+  if (!repo) throw new Error(`Dépôt invalide : ${args.repo} (format attendu : propriétaire/dépôt).`)
+  return repo
+}
+
 async function createService(): Promise<StudioService> {
   const dir = await workspaceDir()
   if (!existsSync(dir)) throw new Error(`Dossier introuvable : ${dir}`)
-  console.log(c.dim(`Dossier des modpacks : ${dir}\n`))
+  const repo = await repository()
+  console.log(c.dim(`Dossier des modpacks : ${dir}\nDépôt GitHub : ${repoSlug(repo)}\n`))
   let analyzing: string | null = null
   return new StudioService({
-    getSettings: () => ({ workspaceDir: dir, defaultWorkspaceDir: defaultWorkspaceDir(), hasStoredToken: false }),
-    getToken: () => resolveToken({ dotenvDir: process.cwd() }),
-    apiBase: process.env.MPD_GITHUB_API || GITHUB_API,
+    getWorkspaceDir: () => dir,
+    defaultWorkspaceDir: defaultWorkspaceDir(),
+    // Les scripts publient sans passer par le choix du rôle : c'est l'outil de l'auteur.
+    getAppSettings: async () => ({ role: 'publisher', repo }),
+    getCredential: () => resolveCredential({ dotenvDir: process.cwd() }),
     onAnalyzing: (fileName) => {
       if (fileName && fileName !== analyzing) console.log(c.dim(`  Analyse de ${fileName}…`))
       analyzing = fileName
@@ -104,10 +121,10 @@ const KIND_LABELS: Record<SyncActionKind, (s: string) => string> = {
 
 async function publier(): Promise<void> {
   const service = await createService()
-  console.log(c.dim(`Comparaison avec ${GITHUB_OWNER}/${GITHUB_REPO}…`))
+  console.log(c.dim('Comparaison avec GitHub…'))
   const { view: plan } = await service.freshPlan()
   const github = service.githubStatus
-  console.log(c.dim(`GitHub : ${github.login ?? 'connecté'} (jeton : ${github.tokenSource})${github.repoPrivate ? ' · dépôt privé, invisible pour les joueurs' : ''}\n`))
+  console.log(c.dim(`GitHub : ${github.login ?? 'connecté'} (connexion : ${github.tokenSource})${github.repoPrivate ? ' · dépôt privé, invisible pour les joueurs' : ''}\n`))
 
   if (plan.pendingZips > 0) {
     console.log(c.yellow(`⚠ ${plan.pendingZips} zip${plan.pendingZips > 1 ? 's' : ''} pas encore rangé${plan.pendingZips > 1 ? 's' : ''} : ignoré${plan.pendingZips > 1 ? 's' : ''} (npm run modpacks:ranger).\n`))

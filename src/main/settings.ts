@@ -1,31 +1,48 @@
-import { app } from 'electron'
-import { join } from 'node:path'
-import { readJson, writeJsonAtomic } from './fsutil'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { APP_REPO } from '../shared/config'
+import { isRepoRef } from '../shared/repo'
 import type { Settings } from '../shared/types'
+import { readJson, writeJsonAtomic } from './fsutil'
 
 const DEFAULTS: Settings = {
   instancesDir: null,
   openCurseForgeAfterInstall: true,
-  shortcutPrompted: false
+  shortcutPrompted: false,
+  role: null,
+  repo: APP_REPO,
+  workspaceDir: null,
+  lastView: 'library'
 }
 
-let cached: Settings | null = null
+// Réglages de l'application (rôle, dépôt, dossier des modpacks…), lus aussi par les scripts `modpacks:*` :
+// le fichier n'est pas gardé en mémoire, pour voir tout de suite un changement fait par un script.
+let file = join(process.env.APPDATA ?? join(homedir(), 'AppData', 'Roaming'), 'Modpack Downloader', 'settings.json')
 
-function settingsFile(): string {
-  return join(app.getPath('userData'), 'settings.json')
+/** L'application des joueurs utilise son dossier userData (qui peut être déplacé par --user-data-dir). */
+export function useSettingsFile(path: string): void {
+  file = path
+}
+
+/** Dossier des réglages, où se trouve aussi la connexion GitHub enregistrée. */
+export function settingsDir(): string {
+  return dirname(file)
 }
 
 export async function getSettings(): Promise<Settings> {
-  if (!cached) {
-    const stored = await readJson<Partial<Settings>>(settingsFile())
-    cached = { ...DEFAULTS, ...stored }
+  const stored = await readJson<Partial<Settings>>(file)
+  return {
+    ...DEFAULTS,
+    ...stored,
+    role: stored?.role === 'receiver' || stored?.role === 'publisher' ? stored.role : null,
+    repo: isRepoRef(stored?.repo) ? { owner: stored.repo.owner, name: stored.repo.name } : APP_REPO,
+    workspaceDir: typeof stored?.workspaceDir === 'string' && stored.workspaceDir ? stored.workspaceDir : null,
+    lastView: stored?.lastView === 'studio' ? 'studio' : 'library'
   }
-  return cached
 }
 
 export async function updateSettings(patch: Partial<Settings>): Promise<Settings> {
   const next: Settings = { ...(await getSettings()), ...patch }
-  await writeJsonAtomic(settingsFile(), next)
-  cached = next
+  await writeJsonAtomic(file, next)
   return next
 }

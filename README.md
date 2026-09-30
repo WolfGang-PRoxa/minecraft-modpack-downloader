@@ -8,10 +8,15 @@ Le modpack apparaît directement dans CurseForge, prêt à être lancé.
 1. Installe [CurseForge](https://www.curseforge.com/download/app) si ce n'est pas déjà fait.
 2. Télécharge **Modpack-Downloader-Setup-x.y.z.exe** depuis la dernière release
    [« Modpack Downloader »](https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases/latest) et lance-le.
-   Si Windows affiche « Windows a protégé votre ordinateur », clique sur **Informations complémentaires**,
-   puis **Exécuter quand même** (l'application n'est pas signée).
-3. Au premier lancement, l'application propose d'ajouter un raccourci sur ton bureau (ou à l'endroit de ton
-   choix, bouton **Ailleurs…**). C'est aussi possible plus tard dans les paramètres.
+   Les installeurs signés indiquent l'éditeur **SignPath Foundation** (voir
+   [Politique de signature du code](#politique-de-signature-du-code)). Si Windows affiche « Windows a protégé votre
+   ordinateur », clique sur **Informations complémentaires**, puis **Exécuter quand même** : cet avertissement
+   apparaît pour un installeur non signé, et parfois pour une nouvelle version signée, le temps que Microsoft la
+   connaisse.
+3. Au premier lancement, choisis **Récepteur** (le choix par défaut) : tu reçois les modpacks publiés sur ce dépôt.
+   L'application propose ensuite d'ajouter un raccourci sur ton bureau (ou à l'endroit de ton choix, bouton
+   **Ailleurs…**). Rôle, dépôt suivi et raccourci se changent à tout moment dans les paramètres : l'interface
+   suit le rôle, dans la même fenêtre.
 4. Dans l'application, clique sur **Installer**. CurseForge s'ouvre et le modpack est dans l'onglet Minecraft.
 
 Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
@@ -19,25 +24,29 @@ tes captures d'écran et tes packs de ressources sont conservés.
 
 `F11` : passer du plein écran à une fenêtre.
 
-## Publier un modpack : Modpack Studio
+## Publier un modpack : le Studio
 
-Le studio est l'outil de l'auteur : on y dépose les zips de chaque mise à jour, il les numérote et met les
-releases GitHub en accord avec le dossier, en quelques clics.
+Le Studio est la vue du publieur, dans la même fenêtre que la bibliothèque : on y dépose les zips de chaque mise à
+jour, il les numérote et met les releases GitHub en accord avec le dossier, en quelques clics.
 
-Prérequis, une seule fois :
+Devenir publieur (au premier lancement, ou dans **Paramètres → Utilisation**) :
 
-- le dépôt doit être **public** (sinon les joueurs ne voient rien) ;
-- une connexion à GitHub : si [GitHub CLI](https://cli.github.com/) est connecté (`gh auth login`), il n'y a rien
-  d'autre à faire. Sinon, colle dans les paramètres du studio un jeton *fine-grained* limité à ce dépôt avec l'accès
-  **Contents : Read and write** ([créer un jeton](https://github.com/settings/personal-access-tokens/new)).
+1. Indique le dépôt GitHub des modpacks (`propriétaire/dépôt`). Il doit être **public**, sinon les joueurs ne voient
+   rien. Par défaut : `WolfGang-PRoxa/minecraft-modpack-downloader`.
+2. Connecte le compte GitHub qui possède ce dépôt : l'application vérifie qu'il a le droit d'y publier, ce qui atteste
+   qu'il s'agit bien de toi. Si une session existe déjà sur le PC ([GitHub CLI](https://cli.github.com/) connecté,
+   ou variable `GITHUB_TOKEN`), elle est utilisée d'office. Sinon : **Se connecter avec GitHub**, ou un jeton
+   *fine-grained* limité au dépôt avec l'accès **Contents : Read and write**
+   ([créer un jeton](https://github.com/settings/personal-access-tokens/new)), chiffré par Windows.
+3. L'application passe sur le **Studio**. Les onglets **Bibliothèque** et **Studio**, en haut, permettent de
+   passer de l'un à l'autre ; l'application rouvre la dernière vue utilisée. Repasser en récepteur ramène à la
+   bibliothèque et retire l'onglet Studio.
 
-```bash
-npm install          # la première fois
-npm run studio
-```
+Les récepteurs suivent par défaut le dépôt `WolfGang-PRoxa/minecraft-modpack-downloader`. Si tu publies sur un autre
+dépôt, tes joueurs le choisissent dans **Paramètres → Utilisation → Modpacks de**.
 
-Dans les paramètres du studio, **Ajouter au bureau** crée un raccourci pour l'ouvrir ensuite d'un double-clic,
-sans terminal (il lance la dernière version compilée : refais `npm run build` après une mise à jour du code).
+Depuis le code source, `npm run studio` lance l'application directement sur le Studio (`npm install` la première
+fois).
 
 Au premier lancement, choisis le dossier des modpacks (par défaut `C:\Users\<toi>\Modpacks`). Il contient un
 sous-dossier par modpack :
@@ -90,7 +99,8 @@ npm run modpacks:publier -- --dry-run       # affiche seulement ce qui changerai
 # options : --dir <dossier>, --yes (sans confirmation)
 ```
 
-Les scripts utilisent `GITHUB_TOKEN`, un fichier `.env` (`GITHUB_TOKEN=…`, ignoré par git) ou la session GitHub CLI.
+Les scripts publient sur le dépôt choisi dans l'application (ou `--repo propriétaire/dépôt`), avec la connexion faite
+dans l'application, sinon `GITHUB_TOKEN`, un fichier `.env` (`GITHUB_TOKEN=…`, ignoré par git) ou la session GitHub CLI.
 
 ## Publier une nouvelle version de l'application
 
@@ -102,20 +112,68 @@ Les scripts utilisent `GITHUB_TOKEN`, un fichier `.env` (`GITHUB_TOKEN=…`, ign
    git push origin app-v1.1.0
    ```
 
-GitHub Actions construit l'installeur et crée la release. Les applications déjà installées affichent un bandeau
-« Nouvelle version » et se mettent à jour en un clic.
+GitHub Actions construit l'installeur, le fait signer (voir ci-dessous) et crée la release. Les applications déjà
+installées affichent un bandeau « Nouvelle version » et se mettent à jour en un clic.
+
+### Signature du code (mainteneur)
+
+L'installeur est signé gratuitement par [SignPath Foundation](https://signpath.org), réservé aux projets open source.
+Tant que la signature n'est pas configurée, la CI publie l'installeur sans signature.
+
+Mise en place, une seule fois :
+
+1. Prérequis de SignPath Foundation : licence open source ([MIT](LICENSE)), double authentification activée sur
+   GitHub et sur SignPath, et une première release de l'application déjà publiée (`app-v1.0.0`, non signée).
+2. Candidater sur [signpath.org](https://signpath.org/apply) avec l'adresse du dépôt.
+3. Une fois le projet créé chez SignPath : installer l'application GitHub de SignPath sur le dépôt, lier le
+   *Trusted Build System* « GitHub.com » au projet, définir comme configuration d'artefact par défaut le contenu de
+   [`.github/signpath/artifact-configuration.xml`](.github/signpath/artifact-configuration.xml), et créer un jeton d'API
+   pour un utilisateur autorisé à soumettre des demandes.
+4. Dans GitHub → *Settings* → *Secrets and variables* → *Actions* : le secret `SIGNPATH_API_TOKEN` et les variables
+   `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG` et `SIGNPATH_SIGNING_POLICY_SLUG` (en général
+   `release-signing`).
+
+À chaque tag `app-v*`, la CI envoie l'installeur à SignPath et attend : approuve la demande sur signpath.io (un e-mail
+te prévient). L'installeur signé est ensuite vérifié puis publié. Seul l'installeur est signé : c'est le fichier que
+Windows contrôle au téléchargement.
+
+## Politique de signature du code
+
+Free code signing provided by [SignPath.io](https://about.signpath.io), certificate by
+[SignPath Foundation](https://signpath.org).
+(Signature gratuite fournie par SignPath.io, certificat de la SignPath Foundation.)
+
+Rôles :
+
+- **Auteurs** (modifient le code sans relecture) : [WolfGang-PRoxa](https://github.com/WolfGang-PRoxa)
+- **Relecteurs** (relisent les contributions extérieures) : [WolfGang-PRoxa](https://github.com/WolfGang-PRoxa)
+- **Approbateurs** (autorisent la signature de chaque version) : [WolfGang-PRoxa](https://github.com/WolfGang-PRoxa)
+
+Seuls les installeurs construits par GitHub Actions à partir de ce dépôt sont signés, après approbation manuelle.
+
+### Confidentialité
+
+Modpack Downloader ne collecte aucune donnée et n'envoie rien à ses auteurs. Il ne contacte que GitHub
+(`api.github.com`, `github.com` et ses serveurs de fichiers) : pour lister les modpacks et les mises à jour du dépôt
+suivi, télécharger les fichiers que tu choisis d'installer et afficher les avatars des comptes. En mode publieur, la
+connexion GitHub (jeton) reste chiffrée sur ton PC et n'est envoyée qu'à GitHub, pour publier sur le dépôt choisi.
+Aucune autre information n'est transmise à un autre système.
 
 ## Développement
 
 ```bash
 npm install
 npm run dev          # lance l'application avec rechargement à chaud
-npm run studio       # lance le Modpack Studio (même application, option --studio)
+npm run studio       # même chose, ouverte sur la vue Studio (option --studio)
 npm run typecheck
 npm run build:win    # installeur local dans dist/
 ```
 
-Le dépôt interrogé est défini dans `src/shared/config.ts`.
+Le dépôt de l'application (mises à jour, source des modpacks par défaut) est défini dans `src/shared/config.ts`
+(`APP_REPO`), comme l'identifiant de l'application OAuth GitHub (`GITHUB_OAUTH_CLIENT_ID`) utilisée par
+« Se connecter avec GitHub ».
+
+Licence : [MIT](LICENSE).
 
 ### Comment ça marche
 

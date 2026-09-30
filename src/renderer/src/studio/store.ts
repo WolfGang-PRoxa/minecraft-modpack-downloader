@@ -1,9 +1,9 @@
 import { create } from 'zustand'
 import type { ActionResult, StudioOverview } from '../../../shared/studio'
 import type { ToastItem } from '../components/Toasts'
+import { useStore } from '../store'
 
 export type Dialog =
-  | { kind: 'settings' }
   | { kind: 'new-pack' }
   | { kind: 'pack-info'; folder: string }
   | { kind: 'notes'; folder: string; version: number }
@@ -18,7 +18,6 @@ interface StudioState {
   checkingGitHub: boolean
   analyzing: string | null
   dialog: Dialog | null
-  toasts: ToastItem[]
 
   init(): Promise<void>
   refresh(options?: { remote?: boolean }): Promise<void>
@@ -26,8 +25,10 @@ interface StudioState {
   closeDialog(): void
   /** Affiche l'erreur d'une action du studio ; renvoie true si elle a réussi. */
   run(result: Promise<ActionResult>, success?: string): Promise<boolean>
+  /** Notifications communes à toute l'application. */
   pushToast(toast: Omit<ToastItem, 'id'>): void
-  dismissToast(id: number): void
+  /** Paramètres communs de l'application (rôle, dépôt, compte, dossier des modpacks). */
+  openSettings(): void
 }
 
 /** Retire l'enrobage ajouté par Electron aux erreurs levées dans le processus principal. */
@@ -36,7 +37,6 @@ export function errorMessage(err: unknown): string {
   return message.replace(/^Error invoking remote method '[^']+': (?:\w*Error: )?/, '')
 }
 
-let toastSeq = 0
 let initialized = false
 
 export const useStudio = create<StudioState>((set, get) => ({
@@ -45,8 +45,8 @@ export const useStudio = create<StudioState>((set, get) => ({
   checkingGitHub: false,
   analyzing: null,
   dialog: null,
-  toasts: [],
 
+  /** Appelé à la première ouverture de la vue Studio. */
   async init() {
     if (initialized) return
     initialized = true
@@ -94,17 +94,20 @@ export const useStudio = create<StudioState>((set, get) => ({
   },
 
   pushToast(toast) {
-    const id = ++toastSeq
-    set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }))
-    setTimeout(() => get().dismissToast(id), toast.kind === 'error' ? 12_000 : 6_000)
+    useStore.getState().pushToast(toast)
   },
 
-  dismissToast(id) {
-    set((s) => ({ toasts: s.toasts.filter((t) => t.id !== id) }))
+  openSettings() {
+    useStore.getState().setSettingsOpen(true)
   }
 }))
 
-export const openLink = (url: string) => void window.studio.openExternal(url)
+/** Relit la vue Studio si elle a déjà été ouverte (changement de dépôt, de compte, de dossier…). */
+export function refreshStudioIfOpen(options?: { remote?: boolean }): void {
+  if (initialized) void useStudio.getState().refresh(options)
+}
+
+export const openLink = (url: string) => void window.api.openExternal(url)
 export const openPath = (path: string) =>
   void window.studio.openPath(path).catch((err: unknown) =>
     useStudio.getState().pushToast({ kind: 'error', title: 'Ouverture impossible', message: errorMessage(err) })

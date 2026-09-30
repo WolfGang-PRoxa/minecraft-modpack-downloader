@@ -1,6 +1,7 @@
 import { join } from 'node:path'
-import { GITHUB_OWNER, GITHUB_REPO, GITHUB_REPO_URL } from '../../shared/config'
+import { APP_REPO } from '../../shared/config'
 import { modpackTag, parseModpackTag } from '../../shared/releases'
+import { repoSlug, repoUrl, sameRepo } from '../../shared/repo'
 import type {
   GitHubStatus,
   OrphanPack,
@@ -12,9 +13,11 @@ import type {
   StudioOverview,
   StudioSettings
 } from '../../shared/studio'
+import type { RepoRef, Settings } from '../../shared/types'
+import type { Credential } from '../auth'
 import { AnalysisCache, describeError, StudioError } from './analyze'
 import { zipInstance } from './archive'
-import { GitHubClient, GITHUB_API, type TokenSource } from './githubApi'
+import { GitHubClient } from './githubApi'
 import { applyPlan, computePlan, fetchRemoteState, highestRemoteNumber, type InternalPlan, type RemoteState } from './sync'
 import {
   applyRanger,
@@ -32,19 +35,22 @@ import {
 } from './workspace'
 
 export interface StudioServiceOptions {
-  getSettings(): StudioSettings
-  getToken(): Promise<{ token: string; source: TokenSource } | null>
-  apiBase?: string
+  /** Dossier des modpacks (réglage propre au studio). */
+  getWorkspaceDir(): string | null
+  defaultWorkspaceDir: string
+  /** Rôle et dépôt, relus à chaque fois dans les réglages de l'application. */
+  getAppSettings(): Promise<Pick<Settings, 'role' | 'repo'>>
+  getCredential(): Promise<Credential | null>
   /** URL de l'image d'un modpack pour la fenêtre du studio. */
   coverUrl?(pack: LocalPack): string | null
   onAnalyzing?(fileName: string | null): void
 }
 
-function uncheckedGitHub(): GitHubStatus {
+function uncheckedGitHub(repo: RepoRef): GitHubStatus {
   return {
     state: 'unchecked',
-    repo: `${GITHUB_OWNER}/${GITHUB_REPO}`,
-    repoUrl: GITHUB_REPO_URL,
+    repo: repoSlug(repo),
+    repoUrl: repoUrl(repo),
     login: null,
     tokenSource: null,
     repoPrivate: null,
@@ -62,13 +68,15 @@ export class StudioService {
   private cache: { dir: string; cache: AnalysisCache } | null = null
   private scanning: Promise<LocalWorkspace | null> | null = null
   private remote: RemoteState | null = null
-  private github: GitHubStatus = uncheckedGitHub()
+  /** Dépôt auquel correspond `remote` : un changement de dépôt invalide tout. */
+  private remoteRepo: RepoRef = APP_REPO
+  private github: GitHubStatus = uncheckedGitHub(APP_REPO)
   private busy: string | null = null
 
   constructor(private readonly options: StudioServiceOptions) {}
 
   private get workspaceDir(): string | null {
-    return this.options.getSettings().workspaceDir
+    return this.options.getWorkspaceDir()
   }
 
   /** Empêche deux opérations d'écriture en même temps (rangement pendant une publication…). */
@@ -106,22 +114,26 @@ export class StudioService {
     return scanWorkspace(dir, this.cache.cache, this.options.onAnalyzing)
   }
 
-  private async client(): Promise<{ client: GitHubClient; source: TokenSource } | null> {
-    const token = await this.options.getToken()
-    return token ? { client: new GitHubClient(token.token, this.options.apiBase ?? GITHUB_API), source: token.source } : null
+  private async client(): Promise<{ client: GitHubClient; credential: Credential } | null> {
+    const { repo } = await this.options.getAppSettings()
+    const credential = await this.options.getCredential()
+    return credential ? { client: new GitHubClient(credential.token, repo), credential } : null
   }
 
-  /** Relit les releases GitHub (et vérifie le jeton). */
+  /** Relit les releases GitHub (et vérifie la connexion). */
   async refreshRemote(): Promise<GitHubStatus> {
-    const status = uncheckedGitHub()
+    const { repo } = await this.options.getAppSettings()
+    const status = uncheckedGitHub(repo)
     status.checkedAt = new Date().toISOString()
+    if (!sameRepo(repo, this.remoteRepo)) this.remote = null
+    this.remoteRepo = repo
     const auth = await this.client()
     if (!auth) {
       this.remote = null
       this.github = { ...status, state: 'no-token' }
       return this.github
     }
-    status.tokenSource = auth.source
+    status.tokenSource = auth.credential.source
     try {
       const [repo, login] = await Promise.all([auth.client.getRepo(), auth.client.getLogin()])
       status.login = login
@@ -141,10 +153,18 @@ export class StudioService {
   }
 
   async overview(options: { refreshRemote?: boolean } = {}): Promise<StudioOverview> {
-    if (options.refreshRemote && !this.busy) await this.refreshRemote()
-    const settings = this.options.getSettings()
+    const app = await this.options.getAppSettings()
+    // Dépôt changé dans l'application depuis la dernière lecture : on relit GitHub.
+    const repoChanged = !sameRepo(app.repo, this.remoteRepo) && this.github.state !== 'unchecked'
+    if ((options.refreshRemote || repoChanged) && !this.busy) await this.refreshRemote()
+    const settings: StudioSettings = {
+      workspaceDir: this.workspaceDir,
+      defaultWorkspaceDir: this.options.defaultWorkspaceDir,
+      role: app.role,
+      repo: app.repo
+    }
     const workspace = await this.scan()
-    const plan = workspace && this.remote ? computePlan(workspace, this.remote) : null
+    const plan = workspace && this.remote ? computePlan(workspace, this.remote, this.remoteRepo.owner) : null
     return {
       settings,
       workspaceExists: workspace?.exists ?? false,
@@ -167,7 +187,7 @@ export class StudioService {
             return {
               tag: s.action.tag,
               version: parseModpackTag(s.action.tag)?.version ?? s.action.tag,
-              url: release?.html_url ?? GITHUB_REPO_URL,
+              url: release?.html_url ?? repoUrl(this.remoteRepo),
               draft: Boolean(release?.draft)
             }
           })
@@ -242,13 +262,16 @@ export class StudioService {
   /** Calcule le plan à partir d'un état de GitHub tout frais. */
   async freshPlan(): Promise<InternalPlan> {
     this.requireWorkspace()
+    if ((await this.options.getAppSettings()).role !== 'publisher') {
+      throw new StudioError('Passe en mode publieur (Paramètres → Utilisation) pour publier.')
+    }
     const github = await this.refreshRemote()
     if (github.state !== 'ok' || !this.remote) {
-      throw new StudioError(github.state === 'no-token' ? 'Aucun jeton GitHub : connecte-toi dans les paramètres.' : github.error!)
+      throw new StudioError(github.state === 'no-token' ? 'Pas de connexion GitHub : connecte-toi dans les paramètres.' : github.error!)
     }
     const workspace = await this.scan()
     if (!workspace?.exists) throw new StudioError('Le dossier des modpacks est introuvable.')
-    return computePlan(workspace, this.remote)
+    return computePlan(workspace, this.remote, this.remoteRepo.owner)
   }
 
   publish(
@@ -272,7 +295,7 @@ export class StudioService {
         }
       }
       const auth = await this.client()
-      if (!auth) return { ok: false, cancelled: false, error: 'Aucun jeton GitHub.', done: 0 }
+      if (!auth) return { ok: false, cancelled: false, error: 'Pas de connexion GitHub.', done: 0 }
 
       // L'identifiant et le dernier numéro sont figés dans pack.json dès la première publication.
       const packs = new Set(plan.steps.flatMap((s) => (s.kind === 'delete' ? [] : [s.desired.pack])))

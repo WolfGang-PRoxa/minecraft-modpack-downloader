@@ -1,6 +1,9 @@
 import { app, BrowserWindow, Menu, protocol, shell } from 'electron'
 import { join } from 'node:path'
+import { setGitHubApiOverride } from './githubEnv'
 import { registerIpc } from './ipc'
+import { useSettingsFile } from './settings'
+import { COVER_SCHEME, registerStudio, stopStudioTasks } from './studio/ipc'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -36,6 +39,7 @@ function createWindow(): void {
     if (/^https:\/\//i.test(url)) void shell.openExternal(url)
     return { action: 'deny' }
   })
+  // Bloque aussi un fichier lâché hors d'une zone de dépôt, qui remplacerait la page.
   mainWindow.webContents.on('will-navigate', (event, url) => {
     if (url !== mainWindow?.webContents.getURL()) event.preventDefault()
   })
@@ -51,6 +55,7 @@ function createWindow(): void {
 
   mainWindow.on('closed', () => {
     mainWindow = null
+    stopStudioTasks()
   })
 
   if (!app.isPackaged && process.env.ELECTRON_RENDERER_URL) {
@@ -60,37 +65,32 @@ function createWindow(): void {
   }
 }
 
-function startPlayer(): void {
-  if (!app.requestSingleInstanceLock()) {
-    app.quit()
-    return
-  }
-  app.on('second-instance', () => {
+// En développement, MPD_GITHUB_API permet de pointer vers un faux serveur de releases.
+setGitHubApiOverride(app.isPackaged ? null : process.env.MPD_GITHUB_API)
+
+// Images des modpacks de la vue Studio : le protocole doit être déclaré avant `ready`.
+protocol.registerSchemesAsPrivileged([{ scheme: COVER_SCHEME, privileges: { standard: true, secure: true, supportFetchAPI: true } }])
+
+if (!app.requestSingleInstanceLock()) {
+  app.quit()
+} else {
+  useSettingsFile(join(app.getPath('userData'), 'settings.json'))
+
+  // Relancée alors qu'elle tourne déjà (raccourci, `--studio`…) : la fenêtre revient au premier plan.
+  app.on('second-instance', (_event, argv) => {
     if (!mainWindow) return
     if (mainWindow.isMinimized()) mainWindow.restore()
     mainWindow.focus()
+    mainWindow.webContents.send('app:activated', argv.includes('--studio') ? 'studio' : null)
   })
 
-  app.whenReady().then(() => {
+  app.whenReady().then(async () => {
     app.setAppUserModelId('com.wolfgangproxa.modpackdownloader')
     Menu.setApplicationMenu(null)
     registerIpc(() => mainWindow)
+    await registerStudio(() => mainWindow)
     createWindow()
   })
 
   app.on('window-all-closed', () => app.quit())
-}
-
-// `--studio` ouvre l'outil de l'auteur (ranger et publier les modpacks) au lieu de l'application des joueurs.
-if (process.argv.includes('--studio')) {
-  // À régler avant `ready` : dossier de données et verrou d'instance propres au studio.
-  app.setName('Modpack Studio')
-  app.setPath('userData', join(app.getPath('appData'), 'Modpack Studio'))
-  protocol.registerSchemesAsPrivileged([
-    { scheme: 'studio-media', privileges: { standard: true, secure: true, supportFetchAPI: true } }
-  ])
-  if (!app.requestSingleInstanceLock()) app.quit()
-  else void import('./studio/app').then((studio) => studio.startStudio(__dirname))
-} else {
-  startPlayer()
 }

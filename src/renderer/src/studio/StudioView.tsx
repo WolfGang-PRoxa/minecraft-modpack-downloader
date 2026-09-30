@@ -5,97 +5,25 @@ import {
   CircleX,
   CloudOff,
   CloudUpload,
-  Copy,
   FolderOpen,
   FolderPlus,
   FolderSearch,
   KeyRound,
-  Minus,
   RefreshCw,
-  Settings,
-  TriangleAlert,
-  X
+  TriangleAlert
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import type { StudioOverview } from '../../../shared/studio'
-import { Button, IconButton } from '../components/Button'
+import { Button } from '../components/Button'
 import { Logo } from '../components/Logo'
-import { ToastList } from '../components/Toasts'
 import { formatBytes, formatRelative } from '../lib/format'
 import { Spinner } from './Modal'
 import { PackCard } from './PackCard'
 import { ImportDialog, NewPackDialog, NotesDialog, PackInfoDialog } from './PackDialogs'
 import { PublishDialog } from './PublishDialog'
 import { RangerDialog } from './RangerDialog'
-import { SettingsDialog } from './SettingsDialog'
+import { useStore } from '../store'
 import { openPath, useStudio } from './store'
-
-function GitHubChip() {
-  const github = useStudio((s) => s.overview?.github)
-  const checking = useStudio((s) => s.checkingGitHub)
-  const openDialog = useStudio((s) => s.openDialog)
-  if (!github) return null
-
-  const ok = github.state === 'ok'
-  const dot = checking ? 'bg-ink-400' : ok ? (github.repoPrivate ? 'bg-amber-glow' : 'bg-grass-400') : 'bg-red-400'
-  const label = checking
-    ? 'Vérification de GitHub…'
-    : ok
-      ? `GitHub · ${github.login ?? 'connecté'}`
-      : github.state === 'no-token'
-        ? 'GitHub non connecté'
-        : 'GitHub injoignable'
-  return (
-    <button
-      type="button"
-      onClick={() => openDialog({ kind: 'settings' })}
-      title={github.error ?? github.repo}
-      className="no-drag flex items-center gap-2 rounded-full bg-white/[0.05] py-1.5 pr-3.5 pl-3 text-xs font-medium text-ink-200 ring-1 ring-inset ring-white/[0.07] transition hover:bg-white/[0.09]"
-    >
-      <span className={`size-2 rounded-full ${dot}`} />
-      {label}
-    </button>
-  )
-}
-
-function TitleBar() {
-  const openDialog = useStudio((s) => s.openDialog)
-  const refresh = useStudio((s) => s.refresh)
-  const busy = useStudio((s) => s.pending > 0)
-  return (
-    <header className="drag-region relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.05] bg-ink-900/70 pr-2 pl-5 backdrop-blur-xl">
-      <Logo size={26} />
-      <div className="font-display text-[15px] font-semibold tracking-tight text-ink-100">
-        Modpack Studio
-        <span className="ml-2 rounded-md bg-grass-400/15 px-1.5 py-0.5 align-middle text-[10px] font-bold tracking-wide text-grass-300 uppercase">
-          Auteur
-        </span>
-      </div>
-      <div className="flex-1" />
-      <div className="no-drag flex items-center gap-1">
-        <GitHubChip />
-        <div className="mx-2 h-5 w-px bg-white/10" />
-        <IconButton
-          icon={RefreshCw}
-          label="Relire le dossier et GitHub"
-          disabled={busy}
-          className={busy ? '[&_svg]:animate-spin' : ''}
-          onClick={() => void refresh({ remote: true })}
-        />
-        <IconButton icon={Settings} label="Paramètres" onClick={() => openDialog({ kind: 'settings' })} />
-        <div className="mx-2 h-5 w-px bg-white/10" />
-        <IconButton icon={Minus} label="Réduire" onClick={() => window.studio.minimizeWindow()} />
-        <IconButton icon={Copy} label="Agrandir / restaurer" size={15} onClick={() => window.studio.toggleMaximize()} />
-        <IconButton
-          icon={X}
-          label="Fermer"
-          onClick={() => window.studio.closeWindow()}
-          className="hover:bg-red-500/85! hover:text-white!"
-        />
-      </div>
-    </header>
-  )
-}
 
 function Centered({ children }: { children: ReactNode }) {
   return <div className="animate-rise flex min-h-full flex-col items-center justify-center px-8 py-12 text-center">{children}</div>
@@ -134,7 +62,7 @@ function Welcome({ overview }: { overview: StudioOverview }) {
         <Logo size={88} className="relative drop-shadow-2xl" />
       </div>
       <h1 className="mt-8 font-display text-4xl font-bold tracking-tight">
-        {missing ? 'Dossier des modpacks introuvable' : 'Bienvenue dans Modpack Studio'}
+        {missing ? 'Dossier des modpacks introuvable' : 'Bienvenue dans le Studio'}
       </h1>
       <p className="mt-3 max-w-xl text-ink-300">
         {missing ? (
@@ -153,7 +81,12 @@ function Welcome({ overview }: { overview: StudioOverview }) {
             variant="primary"
             size="lg"
             icon={FolderPlus}
-            onClick={() => void run(window.studio.useDefaultWorkspace()).then(() => refresh({ remote: true }))}
+            onClick={() =>
+              void run(window.studio.useDefaultWorkspace()).then(() => {
+                void useStore.getState().refreshLocal()
+                return refresh({ remote: true })
+              })
+            }
           >
             Utiliser {overview.settings.defaultWorkspaceDir}
           </Button>
@@ -164,7 +97,9 @@ function Welcome({ overview }: { overview: StudioOverview }) {
           icon={FolderSearch}
           onClick={() =>
             void window.studio.pickWorkspaceDir().then((picked) => {
-              if (picked) void refresh({ remote: true })
+              if (!picked) return
+              void useStore.getState().refreshLocal()
+              void refresh({ remote: true })
             })
           }
         >
@@ -193,6 +128,7 @@ function SyncPanel({ overview }: { overview: StudioOverview }) {
   const checking = useStudio((s) => s.checkingGitHub)
   const refresh = useStudio((s) => s.refresh)
   const openDialog = useStudio((s) => s.openDialog)
+  const openSettings = useStudio((s) => s.openSettings)
   const { github, plan } = overview
 
   if (checking && !plan) {
@@ -202,19 +138,37 @@ function SyncPanel({ overview }: { overview: StudioOverview }) {
       </Panel>
     )
   }
+  if (overview.settings.role !== 'publisher') {
+    return (
+      <Panel
+        icon={KeyRound}
+        tone="bg-amber-glow/10 text-amber-glow ring-amber-glow/25"
+        action={
+          <Button size="sm" variant="primary" onClick={openSettings}>
+            Paramètres
+          </Button>
+        }
+      >
+        <strong className="font-semibold">Tu es en mode récepteur.</strong>{' '}
+        <span className="text-ink-300">
+          Pour publier, passe en publieur (Paramètres → Utilisation) : indique ton dépôt et connecte ton compte GitHub.
+        </span>
+      </Panel>
+    )
+  }
   if (github.state === 'no-token') {
     return (
       <Panel
         icon={KeyRound}
         tone="bg-amber-glow/10 text-amber-glow ring-amber-glow/25"
         action={
-          <Button size="sm" variant="primary" onClick={() => openDialog({ kind: 'settings' })}>
+          <Button size="sm" variant="primary" onClick={openSettings}>
             Connecter GitHub
           </Button>
         }
       >
         <strong className="font-semibold">GitHub n’est pas connecté.</strong>{' '}
-        <span className="text-ink-300">Colle un jeton dans les paramètres, ou connecte GitHub CLI avec « gh auth login ».</span>
+        <span className="text-ink-300">Connecte ton compte GitHub dans les paramètres pour publier sur {github.repo}.</span>
       </Panel>
     )
   }
@@ -330,8 +284,16 @@ function WorkspaceView({ overview }: { overview: StudioOverview }) {
           <Button
             variant="primary"
             icon={CloudUpload}
-            disabled={!plan || changes === 0}
-            title={!plan ? 'GitHub n’est pas joignable' : changes === 0 ? 'GitHub est déjà à jour' : undefined}
+            disabled={!plan || changes === 0 || settings.role !== 'publisher'}
+            title={
+              settings.role !== 'publisher'
+                ? 'Passe en mode publieur dans les paramètres'
+                : !plan
+                  ? 'GitHub n’est pas joignable'
+                  : changes === 0
+                    ? 'GitHub est déjà à jour'
+                    : undefined
+            }
             onClick={() => openDialog({ kind: 'publish' })}
           >
             Publier sur GitHub
@@ -406,8 +368,6 @@ function Dialogs() {
   const dialog = useStudio((s) => s.dialog)
   if (!dialog) return null
   switch (dialog.kind) {
-    case 'settings':
-      return <SettingsDialog />
     case 'new-pack':
       return <NewPackDialog />
     case 'pack-info':
@@ -433,11 +393,10 @@ function AnalyzingPill() {
   )
 }
 
-export function StudioApp() {
+/** Vue Studio de la fenêtre (publieurs) : dossier des modpacks, rangement et publication. */
+export function StudioView() {
   const init = useStudio((s) => s.init)
   const overview = useStudio((s) => s.overview)
-  const toasts = useStudio((s) => s.toasts)
-  const dismissToast = useStudio((s) => s.dismissToast)
 
   useEffect(() => {
     void init()
@@ -458,17 +417,10 @@ export function StudioApp() {
   }
 
   return (
-    <div className="relative flex h-full flex-col">
-      <div className="pointer-events-none fixed inset-0">
-        <div className="pixel-grid absolute inset-0" />
-        <div className="absolute -top-40 -left-40 size-[640px] rounded-full bg-grass-500/[0.07] blur-[120px]" />
-        <div className="absolute -right-40 -bottom-60 size-[720px] rounded-full bg-sky-500/[0.05] blur-[140px]" />
-      </div>
-      <TitleBar />
-      <main className="relative flex-1 overflow-y-auto">{content}</main>
+    <>
+      {content}
       <Dialogs />
       <AnalyzingPill />
-      <ToastList toasts={toasts} dismiss={dismissToast} />
-    </div>
+    </>
   )
 }

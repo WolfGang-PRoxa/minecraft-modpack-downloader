@@ -1,11 +1,14 @@
 import { create } from 'zustand'
+import { sameRepo } from '../../shared/repo'
 import type {
   AppUpdateProgress,
+  AppView,
   Catalog,
   CurseForgeStatus,
   InstalledModpack,
   InstallProgress,
   ModpackVersion,
+  RoleResult,
   Settings,
   ShortcutLocation,
   ShortcutStatus
@@ -28,6 +31,8 @@ interface State {
   settingsOpen: boolean
   toasts: Toast[]
   appUpdateProgress: AppUpdateProgress | null
+  /** Vue affichée : la bibliothèque, ou le studio pour un publieur. */
+  view: AppView
 
   init(): Promise<void>
   refresh(force?: boolean): Promise<void>
@@ -40,6 +45,13 @@ interface State {
   updateSettings(patch: Partial<Settings>): Promise<void>
   pickInstancesDir(): Promise<void>
   createShortcut(location: ShortcutLocation): Promise<void>
+  /**
+   * Enregistre un changement de rôle réussi : la vue suit le rôle (le studio pour un publieur, la bibliothèque
+   * pour un récepteur) et le catalogue est rechargé si le dépôt a changé.
+   */
+  applyRoleResult(result: RoleResult): Promise<void>
+  setView(view: AppView): void
+  openStudio(): void
   installAppUpdate(): Promise<void>
   pushToast(toast: Omit<Toast, 'id'>): void
   dismissToast(id: number): void
@@ -64,6 +76,7 @@ export const useStore = create<State>((set, get) => ({
   settingsOpen: false,
   toasts: [],
   appUpdateProgress: null,
+  view: 'library',
 
   async init() {
     if (initialized) return
@@ -71,8 +84,18 @@ export const useStore = create<State>((set, get) => ({
     window.api.onInstallProgress((progress) => set({ progress }))
     window.api.onAppUpdateProgress((appUpdateProgress) => set({ appUpdateProgress }))
     window.api.onFullscreenChange((fullscreen) => set({ fullscreen }))
-    const [settings, appVersion] = await Promise.all([window.api.getSettings(), window.api.getAppVersion()])
-    set({ settings, appVersion })
+    window.api.onActivated((view) => {
+      void get().refreshLocal()
+      if (view) get().setView(view)
+    })
+    const [settings, appVersion, launchView] = await Promise.all([
+      window.api.getSettings(),
+      window.api.getAppVersion(),
+      window.api.getLaunchView()
+    ])
+    // Un publieur retrouve la dernière vue utilisée (ou le studio avec --studio).
+    const view = settings.role === 'publisher' ? (launchView ?? settings.lastView) : 'library'
+    set({ settings, appVersion, view })
     await Promise.all([get().refresh(), get().refreshLocal()])
   },
 
@@ -88,12 +111,17 @@ export const useStore = create<State>((set, get) => ({
   },
 
   async refreshLocal() {
-    const [installed, curseForge, shortcut] = await Promise.all([
+    const [installed, curseForge, shortcut, settings] = await Promise.all([
       window.api.getInstalled(),
       window.api.getCurseForgeStatus(),
-      window.api.getShortcutStatus()
+      window.api.getShortcutStatus(),
+      window.api.getSettings()
     ])
-    set({ installed, curseForge, shortcut })
+    const catalog = get().catalog
+    set({ installed, curseForge, shortcut, settings })
+    if (settings.role !== 'publisher' && get().view === 'studio') set({ view: 'library' })
+    // Le dépôt a pu être changé ailleurs (script, autre session) : on recharge ses modpacks.
+    if (catalog && !sameRepo(catalog.repo, settings.repo)) await get().refresh(true)
   },
 
   async install(version) {
@@ -175,6 +203,31 @@ export const useStore = create<State>((set, get) => ({
     } else if (!result.cancelled) {
       get().pushToast({ kind: 'error', title: 'Raccourci non créé', message: result.error })
     }
+  },
+
+  async applyRoleResult(result) {
+    if (!result.ok) return
+    const previous = get().settings
+    set({ settings: result.settings })
+    if (previous?.role !== result.settings.role) {
+      // Changement de rôle : on referme les paramètres et on montre tout de suite la vue du nouveau rôle.
+      set({ settingsOpen: false })
+      get().setView(result.settings.role === 'publisher' ? 'studio' : 'library')
+    }
+    if (result.warning) get().pushToast({ kind: 'info', title: 'Dépôt privé', message: result.warning })
+    if (!previous || !sameRepo(previous.repo, result.settings.repo)) await get().refresh(true)
+  },
+
+  setView(view) {
+    const next = view === 'studio' && get().settings?.role !== 'publisher' ? 'library' : view
+    if (next === get().view) return
+    set({ view: next, selectedId: null })
+    void window.api.updateSettings({ lastView: next })
+  },
+
+  openStudio() {
+    set({ settingsOpen: false })
+    get().setView('studio')
   },
 
   async installAppUpdate() {
