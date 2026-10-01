@@ -21,7 +21,9 @@ export async function installAppUpdate(
       expectedSize: update.installerSize,
       onProgress: ({ done, total }) => onProgress({ done, total })
     })
-    const child = spawn(destination, [], { detached: true, stdio: 'ignore' })
+    // --updated : l'installeur sait qu'il s'agit d'une mise à jour demandée par l'application. Il ne pose
+    // alors aucune question (application déjà installée, application en cours d'exécution) et la relance à la fin.
+    const child = spawn(destination, ['--updated'], { detached: true, stdio: 'ignore' })
     child.on('error', () => {})
     child.unref()
     setTimeout(() => app.quit(), 500)

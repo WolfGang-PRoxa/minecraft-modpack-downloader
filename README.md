@@ -22,6 +22,10 @@ Le modpack apparaît directement dans CurseForge, prêt à être lancé.
 Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
 tes captures d'écran et tes packs de ressources sont conservés.
 
+Si tu relances l'installeur alors que l'application est déjà installée, il le détecte et te propose simplement de
+l'ouvrir (ou de la réinstaller) au lieu de tout réinstaller. Un installeur plus récent met à jour sans question ; un
+installeur plus ancien te prévient avant de revenir en arrière.
+
 `F11` : passer du plein écran à une fenêtre.
 
 ## Publier un modpack : le Studio

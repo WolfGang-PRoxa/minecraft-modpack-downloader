@@ -74,7 +74,12 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   d'artefact dans `.github/signpath/`. Seul l'installeur est signé (éditeur affiché : SignPath Foundation). La section
   « Politique de signature du code » du README est exigée par SignPath : la garder à jour.
 - `build/installer.nsh` — l'installeur ne crée pas de raccourci sur le bureau (l'app le propose au premier lancement,
-  réglage `shortcutPrompted`) ; la désinstallation retire celui du bureau, sauf lors d'une mise à jour (`isUpdated`).
+  réglage `shortcutPrompted`) ; la désinstallation retire celui du bureau, sauf lors d'une mise à jour (`isUpdated` :
+  l'ancien désinstalleur reçoit toujours `--updated` pendant une réinstallation).
+  `customInit` vérifie au lancement si l'app est déjà installée et intacte (`DisplayVersion` du registre + exécutable
+  présent) : même version → boîte Oui (ouvrir) / Non (réinstaller) / Annuler ; version installée plus récente →
+  avertissement avant retour en arrière ; plus ancienne → mise à jour sans question. Aucune question avec `/S` ni
+  `--updated`, que `appUpdate.ts` passe à l'installeur lors d'une mise à jour demandée par l'app.
 
 ## Conventions de publication
 
@@ -122,3 +127,13 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   via Playwright.
 - `Cover` : le visuel de remplacement ne doit pas cumuler `relative` et le positionnement passé en `className`
   (`absolute inset-0`), sinon il ne remplit pas son cadre.
+- Tester l'installeur sans toucher à l'installation réelle : le compiler sous une autre identité
+  (`npx electron-builder --win --publish never -c.appId=com.wolfgangproxa.mpdtest -c.productName="MPD Test"
+  -c.extraMetadata.name=mpd-test -c.extraMetadata.productName="MPD Test" -c.nsis.shortcutName="MPD Test"
+  -c.directories.output=<dossier>`, plus `-c.extraMetadata.version=1.0.1` pour une autre version) : autre dossier
+  d'installation, autres clés de registre, autre `userData`. Désinstaller ensuite avec
+  `"Uninstall MPD Test.exe" /currentuser /S`. Les boîtes de dialogue NSIS se pilotent par `PostMessage(WM_COMMAND, IDYES…)`.
+- Depuis Git Bash, un argument `/S` est converti en chemin : lancer l'installeur silencieux depuis PowerShell.
+  Un exécutable de l'app lancé depuis un outil hérite d'`ELECTRON_RUN_AS_NODE` (pas de fenêtre) : retirer la variable.
+- L'installeur est compilé avec `-INPUTCHARSET UTF8` : les messages accentués d'`installer.nsh` s'écrivent en UTF-8.
+  Les avertissements NSIS font échouer le build (variable ou étiquette inutilisée…).
