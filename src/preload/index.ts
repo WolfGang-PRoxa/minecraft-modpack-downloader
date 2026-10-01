@@ -11,6 +11,7 @@ function subscribe<T>(channel: string, listener: (payload: T) => void): () => vo
 const api: RendererApi = {
   getCatalog: (force) => ipcRenderer.invoke('catalog:get', force),
   getInstalled: () => ipcRenderer.invoke('installed:list'),
+  getProfiles: () => ipcRenderer.invoke('curseforge:profiles'),
   install: (version) => ipcRenderer.invoke('install:start', version),
   cancelInstall: (id) => ipcRenderer.invoke('install:cancel', id),
   onInstallProgress: (listener) => subscribe('install:progress', listener),

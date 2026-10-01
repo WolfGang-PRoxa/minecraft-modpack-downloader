@@ -1,9 +1,11 @@
 import { create } from 'zustand'
+import { findPresentVersions, type PresentVersion } from '../../shared/presence'
 import { sameRepo } from '../../shared/repo'
 import type {
   AppUpdateProgress,
   AppView,
   Catalog,
+  CurseForgeProfile,
   CurseForgeStatus,
   InstalledModpack,
   InstallProgress,
@@ -20,6 +22,10 @@ interface State {
   loading: boolean
   refreshing: boolean
   installed: InstalledModpack[]
+  /** Tous les profils CurseForge, y compris ceux que l'application n'a pas installés. */
+  profiles: CurseForgeProfile[]
+  /** Versions publiées retrouvées dans le CurseForge de l'utilisateur (installées ou reconnues à leurs mods). */
+  present: PresentVersion[]
   curseForge: CurseForgeStatus | null
   shortcut: ShortcutStatus | null
   settings: Settings | null
@@ -72,6 +78,15 @@ const AUTO_REFRESH_MS = 30 * 60_000
 /** Après un échec (hors ligne, PC qui sort de veille…), on réessaie plus tôt. */
 const AUTO_REFRESH_RETRY_MS = 5 * 60_000
 
+function presentIn(catalog: Catalog | null, installed: InstalledModpack[], profiles: CurseForgeProfile[]): PresentVersion[] {
+  if (!catalog) return []
+  return findPresentVersions(
+    catalog.modpacks.flatMap((modpack) => modpack.versions),
+    installed,
+    profiles
+  )
+}
+
 let toastSeq = 0
 let initialized = false
 let nextAutoRefresh = 0
@@ -83,6 +98,8 @@ export const useStore = create<State>((set, get) => ({
   loading: true,
   refreshing: false,
   installed: [],
+  profiles: [],
+  present: [],
   curseForge: null,
   shortcut: null,
   settings: null,
@@ -132,7 +149,7 @@ export const useStore = create<State>((set, get) => ({
       const catalog = await window.api.getCatalog(force)
       if (seq !== catalogSeq) return
       nextAutoRefresh = Date.now() + (catalog.error ? AUTO_REFRESH_RETRY_MS : AUTO_REFRESH_MS)
-      set({ catalog })
+      set({ catalog, present: presentIn(catalog, get().installed, get().profiles) })
       if (force && catalog.error) get().pushToast({ kind: 'error', title: 'Actualisation impossible', message: catalog.error })
     } finally {
       if (seq === catalogSeq) set({ loading: false, refreshing: false })
@@ -145,24 +162,26 @@ export const useStore = create<State>((set, get) => ({
     nextAutoRefresh = Date.now() + AUTO_REFRESH_RETRY_MS
     const catalog = await window.api.getCatalog().catch(() => null)
     if (!catalog || seq !== catalogSeq) return
+    const present = presentIn(catalog, get().installed, get().profiles)
     if (catalog.error) {
       // Vérification silencieuse : on garde la liste affichée plutôt que d'annoncer une panne passagère.
-      if (get().catalog?.error) set({ catalog })
+      if (get().catalog?.error) set({ catalog, present })
       return
     }
     nextAutoRefresh = Date.now() + AUTO_REFRESH_MS
-    set({ catalog })
+    set({ catalog, present })
   },
 
   async refreshLocal() {
-    const [installed, curseForge, shortcut, settings] = await Promise.all([
+    const [installed, profiles, curseForge, shortcut, settings] = await Promise.all([
       window.api.getInstalled(),
+      window.api.getProfiles(),
       window.api.getCurseForgeStatus(),
       window.api.getShortcutStatus(),
       window.api.getSettings()
     ])
     const catalog = get().catalog
-    set({ installed, curseForge, shortcut, settings })
+    set({ installed, profiles, present: presentIn(catalog, installed, profiles), curseForge, shortcut, settings })
     if (settings.role !== 'publisher' && get().view === 'studio') set({ view: 'library' })
     // Le dépôt a pu être changé ailleurs (script, autre session) : on recharge ses modpacks.
     if (catalog && !sameRepo(catalog.repo, settings.repo)) await get().refresh(true)

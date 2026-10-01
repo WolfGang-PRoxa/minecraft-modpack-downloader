@@ -22,6 +22,12 @@ Le modpack apparaît directement dans CurseForge, prêt à être lancé.
 Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
 tes captures d'écran et tes packs de ressources sont conservés.
 
+L'application indique aussi ce que tu as déjà : **v2 dans ton CurseForge**, même si ce n'est pas la dernière
+version, et marque cette version dans l'historique. Elle le sait pour les profils qu'elle a installés, et reconnaît
+les autres (zip importé à la main, profil d'origine du publieur…) à leurs mods : un profil qui contient exactement
+les mêmes fichiers `.jar` qu'une version publiée est cette version. Elle ne modifie jamais un profil qu'elle n'a
+pas installé : **Installer** crée alors un profil à part.
+
 Si tu relances l'installeur alors que l'application est déjà installée, il le détecte et te propose simplement de
 l'ouvrir (ou de la réinstaller) au lieu de tout réinstaller. Un installeur plus récent met à jour sans question ; un
 installeur plus ancien te prévient avant de revenir en arrière.
@@ -92,6 +98,12 @@ Modpacks/
    au plus récent. L'ordre se modifie dans l'aperçu.
 3. **Notes** (facultatif) : les nouveautés de la version, en Markdown, affichées aux joueurs.
 4. **Publier sur GitHub** : le studio affiche ce qui va changer, puis l'applique après confirmation.
+
+Le Studio dit aussi quelle version se trouve dans ton CurseForge : « Ton CurseForge contient la **v3** (profil
+« Hardcore Endgame »), en ligne sur GitHub », et la ligne de cette version porte la pastille **Dans ton
+CurseForge**. Tu vois ainsi d'un coup d'œil si ce que tu as sous la main est déjà publié. La reconnaissance se fait
+sur les mods (nom et taille de chaque `.jar`) : après un changement de configuration seul, le profil est toujours
+reconnu comme la même version — dépose quand même un nouveau zip pour le publier.
 
 Le dossier fait foi, GitHub en est le miroir :
 
@@ -202,6 +214,11 @@ Licence : [MIT](LICENSE).
 
 - Les modpacks sont les releases dont le tag suit `pack-<id>-v<version>`, avec un zip du dossier d'instance
   CurseForge et un `modpack.json` (nom, version Minecraft, mod loader, empreinte SHA-256…).
+- `modpack.json` contient aussi l'empreinte des mods de la version (`modsSignature` : nom et taille de chaque `.jar`
+  du dossier `mods`). L'application calcule la même empreinte pour chaque profil du dossier `Instances` : c'est ce
+  qui lui permet de dire qu'une version est déjà dans CurseForge sans l'avoir installée elle-même. Une version
+  publiée avant cette fonction n'a pas d'empreinte : le Studio propose de la compléter (seul `modpack.json` est
+  renvoyé, pas le zip).
 - L'application télécharge le zip, vérifie son empreinte, l'extrait dans un dossier temporaire puis le place dans
   le dossier `Instances` de CurseForge en adaptant les chemins de `minecraftinstance.json`. CurseForge surveille
   ce dossier et affiche le nouveau profil immédiatement.

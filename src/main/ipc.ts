@@ -5,6 +5,7 @@ import { registerAuthIpc } from './authIpc'
 import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir } from './curseforge'
 import { getCatalog } from './github'
 import { cancelInstall, installModpack, isInstalling, listInstalled } from './installer'
+import { listProfiles } from './profiles'
 import { registerRoleIpc } from './roleIpc'
 import { getSettings, updateSettings } from './settings'
 import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
@@ -24,6 +25,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, launch: { jus
   ipcMain.handle('installed:list', async () => {
     const { dir } = await resolveInstancesDir(await getSettings())
     return listInstalled(dir)
+  })
+
+  ipcMain.handle('curseforge:profiles', async () => {
+    const { dir } = await resolveInstancesDir(await getSettings())
+    return listProfiles(dir)
   })
 
   ipcMain.handle('install:start', (_e, version: ModpackVersion): InstallResult | Promise<InstallResult> => {

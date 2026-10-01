@@ -1,10 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { ExternalLink, FolderOpen, History, X } from 'lucide-react'
+import type { PresentVersion } from '../../../shared/presence'
 import type { Modpack, ModpackVersion } from '../../../shared/types'
 import { formatBytes, formatDate, formatLoader, formatRelative } from '../lib/format'
-import { packStatus, versionStatus } from '../lib/status'
 import { useStore } from '../store'
-import { StatusBadge } from './Badges'
+import { describePresence, PackBadges } from './Badges'
 import { Button, IconButton } from './Button'
 import { Cover } from './Cover'
 import { InstallButton } from './InstallButton'
@@ -22,16 +22,17 @@ function InfoCell({ label, value }: { label: string; value: string | null }) {
 function VersionRow({
   version,
   modpack,
+  present,
   active,
   onSelect
 }: {
   version: ModpackVersion
   modpack: Modpack
+  /** Profils CurseForge qui contiennent cette version. */
+  present: PresentVersion[]
   active: boolean
   onSelect: () => void
 }) {
-  const installed = useStore((s) => s.installed)
-  const status = versionStatus(version, installed, modpack.latest)
   const isLatest = version === modpack.latest
 
   return (
@@ -55,9 +56,12 @@ function VersionRow({
               Bêta
             </span>
           )}
-          {status.kind === 'installed' && (
-            <span className="rounded-md bg-white/10 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-ink-100 uppercase">
-              Installée
+          {present.length > 0 && (
+            <span
+              title={present.map(describePresence).join('\n')}
+              className="rounded-md bg-curseforge/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-curseforge uppercase"
+            >
+              Dans ton CurseForge
             </span>
           )}
         </div>
@@ -73,8 +77,10 @@ export function DetailsPanel() {
   const selectedId = useStore((s) => s.selectedId)
   const modpacks = useStore((s) => s.catalog?.modpacks)
   const installed = useStore((s) => s.installed)
+  const present = useStore((s) => s.present)
   const select = useStore((s) => s.select)
   const modpack = modpacks?.find((m) => m.id === selectedId) ?? null
+  const mine = useMemo(() => present.filter((p) => p.id === selectedId), [present, selectedId])
   const [versionTag, setVersionTag] = useState<string | null>(null)
 
   useEffect(() => {
@@ -91,8 +97,10 @@ export function DetailsPanel() {
   if (!modpack) return null
 
   const version = modpack.versions.find((v) => v.tag === versionTag) ?? modpack.latest
-  const status = packStatus(modpack, installed)
   const current = installed.find((i) => i.id === modpack.id)
+  // Version installée par l'application mais retirée de GitHub : elle ne fait pas partie des versions présentes.
+  const unlisted = current && !mine.some((p) => p.profilePath === current.instancePath) ? current : null
+  const folder = current?.instancePath ?? mine[0]?.profilePath
 
   return (
     <div className="absolute inset-0 z-40 flex justify-end">
@@ -113,7 +121,7 @@ export function DetailsPanel() {
             className="absolute top-4 right-4 bg-ink-950/60 text-ink-100 backdrop-blur-md"
           />
           <div className="absolute inset-x-8 bottom-5">
-            <StatusBadge status={status} />
+            <PackBadges modpack={modpack} />
             <h2 className="mt-2 font-display text-4xl font-bold tracking-tight text-white">{modpack.latest.name}</h2>
           </div>
         </div>
@@ -123,8 +131,8 @@ export function DetailsPanel() {
 
           <div className="mt-5 flex flex-wrap items-center gap-3">
             <InstallButton version={version} latest={modpack.latest} />
-            {current && (
-              <Button icon={FolderOpen} onClick={() => void window.api.openPath(current.instancePath)}>
+            {folder && (
+              <Button icon={FolderOpen} onClick={() => void window.api.openPath(folder)}>
                 Ouvrir le dossier
               </Button>
             )}
@@ -142,10 +150,25 @@ export function DetailsPanel() {
             <InfoCell label="Publiée" value={formatRelative(version.publishedAt)} />
           </div>
 
-          {current && (
-            <p className="mt-4 text-xs text-ink-400">
-              Installé dans <span className="font-mono text-ink-300 select-text">{current.instancePath}</span>
-            </p>
+          {(mine.length > 0 || unlisted) && (
+            <div className="mt-4 space-y-2 text-xs text-ink-400">
+              {mine.map((p) => (
+                <p key={`${p.profilePath}|${p.version}`}>
+                  <span className="font-semibold text-ink-200">La v{p.version} est dans ton CurseForge</span> : profil «{' '}
+                  {p.profileName} »,{' '}
+                  {p.source === 'mods'
+                    ? 'reconnu à ses mods. L’application n’y touche pas : « Installer » crée un profil à part.'
+                    : 'installé par l’application.'}
+                  <br />
+                  <span className="font-mono text-ink-300 select-text">{p.profilePath}</span>
+                </p>
+              ))}
+              {unlisted && (
+                <p>
+                  Installé dans <span className="font-mono text-ink-300 select-text">{unlisted.instancePath}</span>
+                </p>
+              )}
+            </div>
           )}
 
           <h3 className="mt-8 mb-3 text-xs font-semibold tracking-widest text-ink-400 uppercase">
@@ -164,6 +187,7 @@ export function DetailsPanel() {
                     key={v.tag}
                     version={v}
                     modpack={modpack}
+                    present={mine.filter((p) => p.version === v.version)}
                     active={v.tag === version.tag}
                     onSelect={() => setVersionTag(v.tag)}
                   />

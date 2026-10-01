@@ -133,6 +133,7 @@ export function modpackVersionFromRelease(
     archiveUrl: archive.browser_download_url,
     archiveSize: archive.size,
     archiveSha256: manifest?.archiveSha256 ?? null,
+    modsSignature: typeof manifest?.modsSignature === 'string' ? manifest.modsSignature : null,
     coverUrl: cover?.browser_download_url ?? null,
     releaseUrl: release.html_url
   }

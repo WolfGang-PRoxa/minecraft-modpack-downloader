@@ -57,11 +57,15 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
     Refusée pendant une installation de modpack ou une opération du studio (`busyWith`) ; à l'inverse, tant qu'elle
     est en cours (`appUpdateTask`), `install:start` et le verrou du studio (`blockedBy`) refusent de démarrer.
     `noteRunningVersion` (réglage `lastRunVersion`) dit au lancement si l'app vient d'être mise à jour.
+  - `modsSignature.ts` (Node pur) : empreinte des mods d'une instance (nom et taille de chaque `.jar` posé dans
+    `mods`), calculée à l'identique pour un zip (`analyze.ts`) et pour un profil CurseForge (`profiles.ts`,
+    `listProfiles`, canal `curseforge:profiles`). Relu à chaque fois : ~30 ms pour 29 profils et 2 800 mods.
   - `zip.ts` (yauzl, protection zip-slip, accepte un zip avec dossier racine), `download.ts`, `ipc.ts`.
 - `src/main/studio/` — la vue Studio. Tout est Node pur (réutilisé par `scripts/modpacks.ts`) sauf `ipc.ts`
   (canaux `studio:*`, images via `studio-media://cover/`, surveillance du dossier des modpacks).
   - `workspace.ts` : lecture du dossier (un sous-dossier par modpack, `pack.json`, `cover.*`), rangement (`planRanger`/`applyRanger`).
-  - `analyze.ts` : validation d'un zip (instance CurseForge, refus des exports `manifest.json`), SHA-256, cache `.studio-cache.json`.
+  - `analyze.ts` : validation d'un zip (instance CurseForge, refus des exports `manifest.json`), SHA-256, empreinte
+    des mods, cache `.studio-cache.json` (son numéro de `version` change quand `ZipAnalysis` gagne un champ).
   - `sync.ts` : `computePlan` (dossier ↔ releases `pack-*` : create / update / delete) et `applyPlan`.
   - `githubApi.ts` : client d'écriture (dépôt configuré), envois en streaming.
   - `archive.ts` : zip d'une instance (`DEFAULT_EXCLUDES`), `service.ts` : orchestration + verrou d'exclusivité,
@@ -76,7 +80,12 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   visible dans toutes les vues (« Plus tard » la replie en rappel dans `TitleBar`). `autoRefresh` relit GitHub en
   silence toutes les 30 min (minuterie + retour sur la fenêtre) ; `DetailsPanel` est positionné dans la zone de
   contenu (`absolute`), pas sur la fenêtre, pour s'ouvrir sous cette barre.
+  Versions présentes dans CurseForge : `store.present` (bibliothèque, recalculé quand le catalogue, les installations
+  ou les profils changent) et `PackCard` (studio, sur les zips du dossier) appellent `findPresentVersions`.
+  `PackBadges` affiche « vN dans ton CurseForge », `CurseForgeNote` la phrase du studio.
 - `src/shared/` — config (`APP_REPO`…), types, dépôts (`repo.ts`), parsing des releases, logo pixel-art.
+  `presence.ts` : `findPresentVersions` — un profil installé par l'app est reconnu à son marqueur, les autres à
+  l'empreinte de leurs mods (à égalité entre versions d'un même modpack, la plus récente).
 - `scripts/modpacks.ts` — les commandes `ranger` et `publier` du studio en ligne de commande.
 - `.github/workflows/release-app.yml` — build de l'installeur et release sur tag `app-vX.Y.Z`. Signature par SignPath
   Foundation (gratuite, open source, licence MIT) si le secret `SIGNPATH_API_TOKEN` existe : envoi de l'installeur
@@ -103,11 +112,15 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   par version et `lastVersion` : un numéro n'est jamais réutilisé.
 - Release de modpack : tag `pack-<id>-v<N>`, titre `<nom> v<N>`, fichiers `<id>-<N>.zip` (contenu du dossier
   d'instance, `minecraftinstance.json` à la racine), `modpack.json` (schéma `ModpackManifest`, `author` = propriétaire
-  du dépôt, avec `coverSha256`),
+  du dépôt, avec `coverSha256` et `modsSignature`),
   `cover.(png|jpg|jpeg|webp)` optionnel. Toujours `make_latest: false` (la « latest » reste l'installeur de l'app).
+  Un champ ajouté à `MANIFEST_FIELDS` fait renvoyer le `modpack.json` des releases existantes (sans le zip) à la
+  publication suivante : c'est ainsi qu'elles reçoivent `modsSignature`.
 - Release de l'app : tag `app-v<version>` = version de `package.json`, avec l'installeur `.exe`.
 - Chaque instance installée contient `.modpack-downloader.json` (id, version, `managedEntries`) : c'est la source
-  de vérité pour savoir ce qui est installé.
+  de vérité pour savoir ce qui est installé, et la seule qui autorise une mise à jour sur place. Un profil sans
+  marqueur reconnu à ses mods (profil d'origine du publieur, zip importé à la main) est seulement signalé : l'app
+  n'y écrit jamais, « Installer » crée un profil à part.
 
 ## Faits CurseForge vérifiés
 

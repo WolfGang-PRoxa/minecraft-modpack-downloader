@@ -16,6 +16,8 @@ export interface ZipAnalysis {
   minecraftVersion: string | null
   modLoader: string | null
   modCount: number | null
+  /** Empreinte des mods du zip, pour reconnaître cette version dans un profil CurseForge. */
+  modsSignature: string | null
   warnings: string[]
 }
 

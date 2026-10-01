@@ -14,6 +14,8 @@ export interface ModpackManifest {
   cover: string | null
   /** Empreinte de l'image : permet au studio de savoir si elle a changé. */
   coverSha256?: string | null
+  /** Empreinte des mods : permet de reconnaître cette version dans un profil CurseForge. */
+  modsSignature?: string | null
   author: string | null
   createdAt: string
 }
@@ -34,6 +36,8 @@ export interface ModpackVersion {
   archiveUrl: string
   archiveSize: number
   archiveSha256: string | null
+  /** Empreinte des mods (absente des versions publiées avant qu'elle existe). */
+  modsSignature: string | null
   coverUrl: string | null
   releaseUrl: string
 }
@@ -88,6 +92,14 @@ export interface CurseForgeStatus {
   instancesDir: string
   instancesDirSource: 'settings' | 'curseforge' | 'default'
   instancesDirExists: boolean
+}
+
+/** Profil du dossier Instances de CurseForge, qu'il ait été créé par l'application ou non. */
+export interface CurseForgeProfile {
+  name: string
+  path: string
+  /** Empreinte de ses mods (null s'il n'en a pas), à comparer à celle des versions publiées. */
+  modsSignature: string | null
 }
 
 export interface RepoRef {
@@ -224,6 +236,7 @@ export interface RendererApi extends AuthApi, RoleApi {
   onActivated(listener: (view: AppView | null) => void): () => void
   getCatalog(force?: boolean): Promise<Catalog>
   getInstalled(): Promise<InstalledModpack[]>
+  getProfiles(): Promise<CurseForgeProfile[]>
   install(version: ModpackVersion): Promise<InstallResult>
   cancelInstall(id: string): Promise<void>
   onInstallProgress(listener: (progress: InstallProgress) => void): () => void

@@ -5,6 +5,7 @@ import type { Entry, ZipFile } from 'yauzl'
 import { CURSEFORGE_INSTANCE_FILE } from '../../shared/config'
 import type { ZipAnalysis } from '../../shared/studio'
 import { readJson, writeJsonAtomic } from '../fsutil'
+import { isModJar, modsSignature } from '../modsSignature'
 import { findRootPrefix, openEntry, openZip, readEntries } from '../zip'
 
 /** Limite de GitHub pour un fichier de release. */
@@ -54,7 +55,13 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
   } catch {
     throw new StudioError('Zip illisible ou incomplet (copie encore en cours ?).')
   }
-  const info: Omit<ZipAnalysis, 'sha256'> = { minecraftVersion: null, modLoader: null, modCount: null, warnings: [] }
+  const info: Omit<ZipAnalysis, 'sha256'> = {
+    minecraftVersion: null,
+    modLoader: null,
+    modCount: null,
+    modsSignature: null,
+    warnings: []
+  }
   try {
     try {
       entries = await readEntries(zip)
@@ -83,10 +90,16 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
     info.minecraftVersion = typeof instance.gameVersion === 'string' ? instance.gameVersion : null
     info.modLoader = typeof loader?.name === 'string' ? loader.name : null
 
-    const names = entries
+    const files = entries
       .filter((e) => e.fileName.startsWith(prefix))
-      .map((e) => e.fileName.slice(prefix.length))
-    info.modCount = names.filter((n) => /^mods\/[^/]+\.jar$/i.test(n)).length
+      .map((e) => ({ name: e.fileName.slice(prefix.length), size: e.uncompressedSize }))
+    const names = files.map((f) => f.name)
+    // Mêmes fichiers que ceux lus dans un profil CurseForge : les .jar posés directement dans mods.
+    const mods = files
+      .filter((f) => /^mods\/[^/]+$/i.test(f.name) && isModJar(f.name))
+      .map((f) => ({ name: f.name.slice('mods/'.length), size: f.size }))
+    info.modCount = mods.length
+    info.modsSignature = modsSignature(mods)
 
     const worlds = new Set(names.map((n) => /^saves\/([^/]+)\//i.exec(n)?.[1]).filter(Boolean))
     if (worlds.size > 0) {
@@ -106,8 +119,9 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
   return { ...info, sha256: await sha256File(file) }
 }
 
+// Version 2 : l'analyse contient l'empreinte des mods.
 interface CacheFile {
-  version: 1
+  version: 2
   entries: Record<string, ZipAnalysis>
 }
 
@@ -129,7 +143,7 @@ export class AnalysisCache {
   static async load(workspaceDir: string): Promise<AnalysisCache> {
     const file = join(workspaceDir, AnalysisCache.FILE_NAME)
     const data = await readJson<CacheFile>(file)
-    return new AnalysisCache(file, data?.version === 1 && data.entries ? data.entries : {})
+    return new AnalysisCache(file, data?.version === 2 && data.entries ? data.entries : {})
   }
 
   static key(folder: string, size: number, mtimeMs: number): string {
@@ -161,6 +175,6 @@ export class AnalysisCache {
     }
     if (!this.dirty) return
     this.dirty = false
-    await writeJsonAtomic(this.file, { version: 1, entries: this.entries } satisfies CacheFile).catch(() => {})
+    await writeJsonAtomic(this.file, { version: 2, entries: this.entries } satisfies CacheFile).catch(() => {})
   }
 }

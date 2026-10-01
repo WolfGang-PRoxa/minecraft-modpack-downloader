@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type ReactNode } from 'react'
+import { useMemo, useState, type DragEvent, type ReactNode } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   CircleAlert,
@@ -13,10 +13,14 @@ import {
   TriangleAlert,
   Upload
 } from 'lucide-react'
+import { findPresentVersions, type PresentVersion } from '../../../shared/presence'
 import type { PackView, PendingZip, RemoteOnlyVersion, RemoteStatus, VersionView } from '../../../shared/studio'
+import type { CurseForgeProfile } from '../../../shared/types'
+import { describePresence } from '../components/Badges'
 import { Button } from '../components/Button'
 import { Cover } from '../components/Cover'
 import { formatBytes, formatDate, formatLoader } from '../lib/format'
+import { useStore } from '../store'
 import { errorMessage, openLink, openPath, useStudio } from './store'
 
 const STATUS: Record<RemoteStatus, { label: string; className: string }> = {
@@ -91,7 +95,66 @@ function versionMeta(version: VersionView): string {
     .join(' · ')
 }
 
-function VersionRow({ pack, version }: { pack: PackView; version: VersionView }) {
+/** Où en est sur GitHub la version que contient le CurseForge du publieur. */
+const ONLINE: Record<RemoteStatus, string> = {
+  published: ', en ligne sur GitHub.',
+  update: ', en ligne sur GitHub (avec des changements à publier).',
+  create: ' : elle n’est pas encore publiée.',
+  blocked: ' : elle n’est pas publiable pour l’instant.',
+  unknown: '.'
+}
+
+const sameName = (a: string, b: string) => {
+  const normalize = (text: string) => text.replace(/[_\s]+/g, ' ').trim().toLowerCase()
+  return normalize(a) === normalize(b)
+}
+
+/**
+ * Dit au publieur quelle version de ce modpack son CurseForge contient, et si elle est en ligne. Sans
+ * correspondance, signale le profil du même nom : ses mods ne sont ceux d'aucune version du dossier.
+ */
+function CurseForgeNote({
+  pack,
+  present,
+  profiles
+}: {
+  pack: PackView
+  present: PresentVersion[]
+  profiles: CurseForgeProfile[]
+}) {
+  const dot = <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-curseforge" />
+  if (present.length > 0) {
+    return (
+      <div className="mt-2.5 space-y-1">
+        {present.map((p) => {
+          const version = pack.versions.find((v) => String(v.number) === p.version)
+          return (
+            <p key={`${p.profilePath}|${p.version}`} className="flex gap-2 text-sm text-ink-300" title={describePresence(p)}>
+              {dot}
+              <span>
+                Ton CurseForge contient la <strong className="font-semibold text-ink-100">v{p.version}</strong> (profil «{' '}
+                {p.profileName} »){ONLINE[version?.remote ?? 'unknown']}
+              </span>
+            </p>
+          )
+        })}
+      </div>
+    )
+  }
+  const namesake = profiles.find((profile) => sameName(profile.name, pack.name) || sameName(profile.name, pack.folder))
+  if (!namesake || pack.versions.length === 0) return null
+  return (
+    <p className="mt-2.5 flex gap-2 text-sm text-ink-400">
+      {dot}
+      <span>
+        Le profil CurseForge « {namesake.name} » n’a les mods d’aucune version de ce dossier : s’il a changé depuis la v
+        {pack.versions[0].number}, crée la v{pack.nextVersion} pour le publier.
+      </span>
+    </p>
+  )
+}
+
+function VersionRow({ pack, version, present }: { pack: PackView; version: VersionView; present: PresentVersion[] }) {
   const openDialog = useStudio((s) => s.openDialog)
   const status = STATUS[version.remote]
   return (
@@ -99,6 +162,14 @@ function VersionRow({ pack, version }: { pack: PackView; version: VersionView })
       badge={<VersionBadge>v{version.number}</VersionBadge>}
       aside={
         <>
+          {present.length > 0 && (
+            <Pill
+              className="bg-curseforge/15 text-curseforge ring-curseforge/30"
+              title={present.map(describePresence).join('\n')}
+            >
+              Dans ton CurseForge
+            </Pill>
+          )}
           <Pill className={status.className} title={version.changes.join('\n') || undefined}>
             {status.label}
           </Pill>
@@ -245,6 +316,17 @@ function useFileDrop(folder: string) {
 
 export function PackCard({ pack, index }: { pack: PackView; index: number }) {
   const openDialog = useStudio((s) => s.openDialog)
+  const installed = useStore((s) => s.installed)
+  const profiles = useStore((s) => s.profiles)
+  // Versions de ce dossier retrouvées dans le CurseForge du publieur (son profil d'origine, le plus souvent).
+  const present = useMemo(() => {
+    const known = pack.versions.map((v) => ({
+      id: pack.id,
+      version: String(v.number),
+      modsSignature: v.analysis?.modsSignature ?? null
+    }))
+    return findPresentVersions(known, installed, profiles)
+  }, [pack, installed, profiles])
   const { over, handlers } = useFileDrop(pack.folder)
   const empty = !pack.versions.length && !pack.pending.length && !pack.remoteOnly.length
   let next = pack.nextVersion
@@ -282,6 +364,7 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
           ) : (
             <p className="mt-1.5 text-sm text-ink-500 italic">Pas encore de description.</p>
           )}
+          <CurseForgeNote pack={pack} present={present} profiles={profiles} />
           <div className="mt-auto flex flex-wrap gap-2 pt-4">
             <Button size="sm" icon={Pencil} onClick={() => openDialog({ kind: 'pack-info', folder: pack.folder })}>
               Infos et image
@@ -312,7 +395,12 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
           <PendingRow key={zip.fileName} zip={zip} number={zip.error ? null : next++} />
         ))}
         {pack.versions.map((version) => (
-          <VersionRow key={version.fileName} pack={pack} version={version} />
+          <VersionRow
+            key={version.fileName}
+            pack={pack}
+            version={version}
+            present={present.filter((p) => p.version === String(version.number))}
+          />
         ))}
         {pack.remoteOnly.map((version) => (
           <RemoteOnlyRow key={version.tag} version={version} />

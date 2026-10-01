@@ -1,18 +1,15 @@
 import { Info } from 'lucide-react'
 import type { Modpack } from '../../../shared/types'
 import { formatRelative } from '../lib/format'
-import { packStatus } from '../lib/status'
 import { useStore } from '../store'
-import { StatusBadge, VersionMeta } from './Badges'
+import { PackBadges, VersionMeta } from './Badges'
 import { IconButton } from './Button'
 import { Cover } from './Cover'
 import { InstallButton } from './InstallButton'
 
 export function ModpackCard({ modpack, index }: { modpack: Modpack; index: number }) {
-  const installed = useStore((s) => s.installed)
   const select = useStore((s) => s.select)
   const latest = modpack.latest
-  const status = packStatus(modpack, installed)
 
   return (
     <article
@@ -29,7 +26,7 @@ export function ModpackCard({ modpack, index }: { modpack: Modpack; index: numbe
         />
         <div className="absolute inset-0 bg-linear-to-t from-ink-850 via-ink-850/10 to-transparent" />
         <div className="absolute top-3 left-3">
-          <StatusBadge status={status} />
+          <PackBadges modpack={modpack} onCover />
         </div>
         <span className="absolute top-3 right-3 rounded-lg bg-ink-950/70 px-2 py-1 text-xs font-semibold text-ink-100 backdrop-blur-md">
           v{latest.version}

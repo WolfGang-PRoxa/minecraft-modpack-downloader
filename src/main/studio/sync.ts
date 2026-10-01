@@ -123,6 +123,7 @@ function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnal
       archiveSha256: a.sha256,
       cover: coverName,
       coverSha256: pack.cover?.sha256 ?? null,
+      modsSignature: a.modsSignature,
       author,
       createdAt: ''
     }
@@ -143,11 +144,12 @@ const MANIFEST_FIELDS: Array<keyof ModpackManifest> = [
   'archiveSha256',
   'cover',
   'coverSha256',
+  'modsSignature',
   'author'
 ]
 
-function sameManifest(a: ModpackManifest, b: ModpackManifest): boolean {
-  return MANIFEST_FIELDS.every((field) => (a[field] ?? null) === (b[field] ?? null))
+function differingFields(a: ModpackManifest, b: ModpackManifest): Array<keyof ModpackManifest> {
+  return MANIFEST_FIELDS.filter((field) => (a[field] ?? null) !== (b[field] ?? null))
 }
 
 const normalizeText = (text: string | null) => (text ?? '').replace(/\r\n/g, '\n').trim()
@@ -252,7 +254,8 @@ export function computePlan(workspace: LocalWorkspace, remote: RemoteState, auth
     const cover =
       d.coverName !== null &&
       (!coverAsset || coverAsset.size !== coverSize || remoteManifest?.coverSha256 !== d.pack.cover!.sha256)
-    const manifest = archive || cover || !remoteManifest || !sameManifest(remoteManifest, d.manifest)
+    const outdated = remoteManifest ? differingFields(remoteManifest, d.manifest) : []
+    const manifest = archive || cover || !remoteManifest || outdated.length > 0
     const release_ =
       published.name !== d.releaseName || normalizeText(published.body) !== normalizeText(d.body) || published.prerelease
     const keep = new Set([d.zipName, MODPACK_MANIFEST_ASSET, d.coverName])
@@ -275,7 +278,15 @@ export function computePlan(workspace: LocalWorkspace, remote: RemoteState, auth
       }
     }
     if (cover) details.push('Nouvelle image de couverture')
-    if (manifest && !archive && !cover) details.push('Infos du modpack mises à jour (nom, description…)')
+    if (manifest && !archive && !cover) {
+      // Version publiée avant que l'empreinte des mods existe : seul modpack.json est renvoyé.
+      const signatureOnly = outdated.length === 1 && outdated[0] === 'modsSignature'
+      details.push(
+        signatureOnly
+          ? 'Empreinte des mods ajoutée : cette version pourra être reconnue dans le CurseForge des joueurs'
+          : 'Infos du modpack mises à jour (nom, description…)'
+      )
+    }
     if (release_) details.push('Titre ou notes de version mis à jour')
     if (extraneous.length) details.push(`Fichiers en trop retirés : ${extraneous.map((a) => a.name).join(', ')}`)
     if (drafts.length) details.push('Brouillon abandonné supprimé')

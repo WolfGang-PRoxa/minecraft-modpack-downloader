@@ -1,19 +1,16 @@
 import { ChevronRight, Sparkles } from 'lucide-react'
 import type { Modpack } from '../../../shared/types'
 import { formatRelative } from '../lib/format'
-import { packStatus } from '../lib/status'
 import { useStore } from '../store'
-import { StatusBadge, VersionMeta } from './Badges'
+import { PackBadges, VersionMeta } from './Badges'
 import { Button } from './Button'
 import { Cover } from './Cover'
 import { InstallButton } from './InstallButton'
 import { Notes } from './Notes'
 
 export function Hero({ modpack }: { modpack: Modpack }) {
-  const installed = useStore((s) => s.installed)
   const select = useStore((s) => s.select)
   const latest = modpack.latest
-  const status = packStatus(modpack, installed)
 
   return (
     <section className="animate-rise relative mx-8 mt-6 overflow-hidden rounded-[28px] ring-1 ring-white/[0.07]">
@@ -34,7 +31,7 @@ export function Hero({ modpack }: { modpack: Modpack }) {
               <Sparkles size={13} strokeWidth={2.5} />
               Dernière sortie · {formatRelative(latest.publishedAt)}
             </span>
-            <StatusBadge status={status} />
+            <PackBadges modpack={modpack} />
           </div>
 
           <h1 className="font-display text-[clamp(2.75rem,5vw,4.75rem)] leading-[0.95] font-bold tracking-tight text-white drop-shadow-lg">
