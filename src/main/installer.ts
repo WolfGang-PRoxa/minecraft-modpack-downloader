@@ -65,6 +65,11 @@ class UserError extends Error {}
 
 const jobs = new Map<string, { controller: AbortController; cancellable: boolean }>()
 
+/** Une installation de modpack est en cours. */
+export function isInstalling(): boolean {
+  return jobs.size > 0
+}
+
 export function cancelInstall(id: string): void {
   const job = jobs.get(id)
   if (job?.cancellable) job.controller.abort()

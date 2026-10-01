@@ -1,5 +1,5 @@
 import { useEffect, type ReactNode } from 'react'
-import { ExternalLink, FolderCog, FolderOpen, Monitor, RotateCcw, X } from 'lucide-react'
+import { ExternalLink, FolderCog, FolderOpen, Monitor, RefreshCw, RotateCcw, X } from 'lucide-react'
 import { APP_REPO_URL, CURSEFORGE_DOWNLOAD_URL } from '../../../shared/config'
 import { useStore } from '../store'
 import { Button, IconButton } from './Button'
@@ -49,6 +49,9 @@ export function SettingsDialog() {
   const publisher = useStore((s) => s.settings?.role === 'publisher')
   const shortcut = useStore((s) => s.shortcut)
   const createShortcut = useStore((s) => s.createShortcut)
+  const update = useStore((s) => s.catalog?.appUpdate ?? null)
+  const checking = useStore((s) => s.refreshing)
+  const checkAppUpdate = useStore((s) => s.checkAppUpdate)
 
   useEffect(() => {
     if (!open) return
@@ -170,12 +173,22 @@ export function SettingsDialog() {
         )}
 
         <Section title="À propos">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-ink-300">Modpack Downloader v{appVersion}</p>
-            <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void window.api.openExternal(APP_REPO_URL)}>
-              Dépôt GitHub
-            </Button>
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-sm text-ink-200">Modpack Downloader v{appVersion}</p>
+            <div className="flex shrink-0 gap-2">
+              <Button size="sm" icon={RefreshCw} disabled={checking} onClick={() => void checkAppUpdate()}>
+                Rechercher une mise à jour
+              </Button>
+              <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => void window.api.openExternal(APP_REPO_URL)}>
+                Dépôt GitHub
+              </Button>
+            </div>
           </div>
+          <p className="mt-3 text-xs leading-relaxed text-ink-400">
+            {update
+              ? `La version ${update.version} est disponible : elle est proposée en haut de la fenêtre.`
+              : 'Une nouvelle version est proposée en haut de la fenêtre dès qu’elle sort, et s’installe en un clic.'}
+          </p>
         </Section>
       </div>
     </div>

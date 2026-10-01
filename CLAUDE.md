@@ -34,15 +34,16 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   - `index.ts` : verrou d'instance, protocole `studio-media:` déclaré avant `ready`, IPC de l'app puis du studio.
     Relancée pendant qu'elle tourne (`second-instance`, éventuellement avec `--studio`) → `app:activated`.
   - `github.ts` : lecture des releases du dépôt suivi (cache ETag sur disque, mode hors ligne), `modpack.json` via
-    l'URL publique (hors quota API), mises à jour de l'app toujours lues dans `APP_REPO` (tags `app-v*`).
+    l'URL publique (hors quota API), mises à jour de l'app toujours lues dans `APP_REPO` (tags `app-v*`) :
+    `findAppUpdate` ne propose qu'une release dont l'installeur `.exe` est en ligne.
   - `installer.ts` : téléchargement → vérif SHA-256 → extraction dans un dossier de travail sur le même disque
     que `Instances` → basculement par renommage. Mise à jour sur place en conservant les données du joueur
     (`PLAYER_DATA`) et ses champs de `minecraftinstance.json` (`PRESERVED_INSTANCE_FIELDS`).
   - `curseforge.ts` : détection (protocole `curseforge://` dans `HKCR`, puis chemins connus Overwolf/autonome),
     lancement, dossier `Instances` (réglage > logs CurseForge > défaut), détection de Minecraft lancé.
   - `settings.ts` (Node pur, sans cache) : `settings.json` du `userData` — `role` (`null` = premier lancement),
-    `repo`, `workspaceDir` (dossier des modpacks), `lastView` (vue rouverte au lancement)… Lu aussi par les scripts
-    (`%APPDATA%\Modpack Downloader\settings.json`).
+    `repo`, `workspaceDir` (dossier des modpacks), `lastView` (vue rouverte au lancement), `lastRunVersion`…
+    Lu aussi par les scripts (`%APPDATA%\Modpack Downloader\settings.json`).
   - `auth.ts` (Node pur) : connexion GitHub partagée app / scripts. Jeton chiffré par DPAPI via PowerShell
     (`github-auth.json` à côté des réglages, relisible par les scripts). Ordre : connexion faite dans l'app >
     `GITHUB_TOKEN` > `.env` (scripts) > `gh auth token`. Vérifie le droit de publier (`permissions.push`) et gère la
@@ -50,7 +51,13 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   - `githubEnv.ts` : base de l'API d'un dépôt ; `MPD_GITHUB_API` la remplace pour tous les dépôts en test.
   - `shortcut.ts` : raccourci `.lnk` de l'app (bureau ou emplacement choisi). Non packagée : cible
     `electron.exe "<projet>"` et icône `.ico` générée depuis `build/icon.png`.
-  - `zip.ts` (yauzl, protection zip-slip, accepte un zip avec dossier racine), `download.ts`, `ipc.ts`, `appUpdate.ts`.
+  - `appUpdate.ts` : mise à jour de l'app. `installAppUpdate` relit lui-même les releases (rien ne vient de la
+    fenêtre), télécharge l'installeur dans `%TEMP%\modpack-downloader`, compare son SHA-256 au `digest` publié par
+    GitHub, le lance détaché avec `--updated` puis quitte ; l'installeur relance l'app avec `--updated`.
+    Refusée pendant une installation de modpack ou une opération du studio (`busyWith`) ; à l'inverse, tant qu'elle
+    est en cours (`appUpdateTask`), `install:start` et le verrou du studio (`blockedBy`) refusent de démarrer.
+    `noteRunningVersion` (réglage `lastRunVersion`) dit au lancement si l'app vient d'être mise à jour.
+  - `zip.ts` (yauzl, protection zip-slip, accepte un zip avec dossier racine), `download.ts`, `ipc.ts`.
 - `src/main/studio/` — la vue Studio. Tout est Node pur (réutilisé par `scripts/modpacks.ts`) sauf `ipc.ts`
   (canaux `studio:*`, images via `studio-media://cover/`, surveillance du dossier des modpacks).
   - `workspace.ts` : lecture du dossier (un sous-dossier par modpack, `pack.json`, `cover.*`), rangement (`planRanger`/`applyRanger`).
@@ -65,6 +72,10 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   dont `view` (`library` / `studio`, qui suit le rôle : `applyRoleResult`). `src/studio/` : vue Studio (`StudioView`)
   et son store (`useStudio`, notifications et paramètres délégués à l'app). Section « Utilisation » partagée
   `components/Usage.tsx` (premier lancement et paramètres). Thème sombre unique.
+  `components/UpdateBar.tsx` : proposition de mise à jour de l'app, sous la barre de titre et hors de `<main>`, donc
+  visible dans toutes les vues (« Plus tard » la replie en rappel dans `TitleBar`). `autoRefresh` relit GitHub en
+  silence toutes les 30 min (minuterie + retour sur la fenêtre) ; `DetailsPanel` est positionné dans la zone de
+  contenu (`absolute`), pas sur la fenêtre, pour s'ouvrir sous cette barre.
 - `src/shared/` — config (`APP_REPO`…), types, dépôts (`repo.ts`), parsing des releases, logo pixel-art.
 - `scripts/modpacks.ts` — les commandes `ranger` et `publier` du studio en ligne de commande.
 - `.github/workflows/release-app.yml` — build de l'installeur et release sur tag `app-vX.Y.Z`. Signature par SignPath
@@ -137,3 +148,14 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   Un exécutable de l'app lancé depuis un outil hérite d'`ELECTRON_RUN_AS_NODE` (pas de fenêtre) : retirer la variable.
 - L'installeur est compilé avec `-INPUTCHARSET UTF8` : les messages accentués d'`installer.nsh` s'écrivent en UTF-8.
   Les avertissements NSIS font échouer le build (variable ou étiquette inutilisée…).
+- Quota GitHub sans connexion : 60 lectures par heure et par adresse IP, et les réponses 304 (ETag) comptent aussi.
+  Ne pas rapprocher les vérifications automatiques (`AUTO_REFRESH_MS`).
+- Les assets de release exposent `digest` (`sha256:…`) même en lecture anonyme, et `state` (`uploaded` une fois
+  l'envoi terminé).
+- `child_process.spawn` signale certaines erreurs par l'événement `error` (fichier absent, accès refusé) et lève les
+  autres tout de suite (exécutable invalide : `spawn UNKNOWN`) : gérer les deux.
+- Tester la mise à jour de l'app de bout en bout : deux installeurs sous l'identité de test (une version ancienne,
+  une récente), la récente servie par le faux serveur comme asset `.exe` d'une release `app-v<version>`. L'app
+  packagée ignorant `MPD_GITHUB_API`, compiler l'ancienne avec `setGitHubApiOverride(process.env.MPD_GITHUB_API)`
+  le temps du build (à retirer aussitôt, ne jamais committer). Ne jamais cliquer « Mettre à jour » dans une app de
+  test branchée sur le vrai GitHub : elle lancerait le vrai installeur, qui remplace l'installation réelle.

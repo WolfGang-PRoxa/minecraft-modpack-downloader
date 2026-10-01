@@ -44,6 +44,8 @@ export interface StudioServiceOptions {
   /** URL de l'image d'un modpack pour la fenêtre du studio. */
   coverUrl?(pack: LocalPack): string | null
   onAnalyzing?(fileName: string | null): void
+  /** Ce qui interdit de démarrer une opération d'écriture (« la mise à jour de l'application »…), sinon null. */
+  blockedBy?(): string | null
 }
 
 function uncheckedGitHub(repo: RepoRef): GitHubStatus {
@@ -81,13 +83,19 @@ export class StudioService {
 
   /** Empêche deux opérations d'écriture en même temps (rangement pendant une publication…). */
   private async exclusive<T>(label: string, run: () => Promise<T>): Promise<T> {
-    if (this.busy) throw new StudioError(`Patiente : ${this.busy} est en cours.`)
+    const other = this.busy ?? this.options.blockedBy?.() ?? null
+    if (other) throw new StudioError(`Patiente : ${other} est en cours.`)
     this.busy = label
     try {
       return await run()
     } finally {
       this.busy = null
     }
+  }
+
+  /** Opération d'écriture en cours (« la publication »…), sinon null. */
+  get currentTask(): string | null {
+    return this.busy
   }
 
   private requireWorkspace(): string {

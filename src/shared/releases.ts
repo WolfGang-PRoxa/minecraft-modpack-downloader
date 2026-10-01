@@ -8,6 +8,10 @@ export interface GhAsset {
   size: number
   browser_download_url: string
   updated_at: string
+  /** Empreinte calculée par GitHub (`sha256:<hex>`), absente des fichiers les plus anciens. */
+  digest?: string | null
+  /** `uploaded` une fois le fichier entièrement envoyé. */
+  state?: string
 }
 
 export interface GhRelease {

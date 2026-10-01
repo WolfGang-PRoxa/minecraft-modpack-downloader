@@ -31,11 +31,15 @@ interface State {
   settingsOpen: boolean
   toasts: Toast[]
   appUpdateProgress: AppUpdateProgress | null
+  /** Version dont la proposition de mise à jour a été remise à plus tard (jusqu'au prochain lancement). */
+  updateDismissed: string | null
   /** Vue affichée : la bibliothèque, ou le studio pour un publieur. */
   view: AppView
 
   init(): Promise<void>
   refresh(force?: boolean): Promise<void>
+  /** Relit GitHub en silence si la dernière lecture date : nouvelle version de l'application, nouveaux modpacks. */
+  autoRefresh(): Promise<void>
   refreshLocal(): Promise<void>
   install(version: ModpackVersion): Promise<void>
   cancelInstall(): void
@@ -53,12 +57,26 @@ interface State {
   setView(view: AppView): void
   openStudio(): void
   installAppUpdate(): Promise<void>
+  cancelAppUpdate(): void
+  /** « Plus tard » : la proposition se replie dans la barre de titre. */
+  dismissAppUpdate(): void
+  showAppUpdate(): void
+  /** Recherche demandée dans les paramètres : dit aussi quand il n'y a rien de nouveau. */
+  checkAppUpdate(): Promise<void>
   pushToast(toast: Omit<Toast, 'id'>): void
   dismissToast(id: number): void
 }
 
+// GitHub décompte chaque lecture anonyme (60 par heure et par adresse IP) : les vérifications restent espacées.
+const AUTO_REFRESH_MS = 30 * 60_000
+/** Après un échec (hors ligne, PC qui sort de veille…), on réessaie plus tôt. */
+const AUTO_REFRESH_RETRY_MS = 5 * 60_000
+
 let toastSeq = 0
 let initialized = false
+let nextAutoRefresh = 0
+// Seule la réponse à la dernière lecture demandée est gardée (changement de dépôt pendant une lecture…).
+let catalogSeq = 0
 
 export const useStore = create<State>((set, get) => ({
   catalog: null,
@@ -76,6 +94,7 @@ export const useStore = create<State>((set, get) => ({
   settingsOpen: false,
   toasts: [],
   appUpdateProgress: null,
+  updateDismissed: null,
   view: 'library',
 
   async init() {
@@ -88,26 +107,51 @@ export const useStore = create<State>((set, get) => ({
       void get().refreshLocal()
       if (view) get().setView(view)
     })
-    const [settings, appVersion, launchView] = await Promise.all([
+    const [settings, appVersion, launch] = await Promise.all([
       window.api.getSettings(),
       window.api.getAppVersion(),
-      window.api.getLaunchView()
+      window.api.getLaunchInfo()
     ])
     // Un publieur retrouve la dernière vue utilisée (ou le studio avec --studio).
-    const view = settings.role === 'publisher' ? (launchView ?? settings.lastView) : 'library'
+    const view = settings.role === 'publisher' ? (launch.view ?? settings.lastView) : 'library'
     set({ settings, appVersion, view })
+    if (launch.justUpdated) {
+      get().pushToast({
+        kind: 'success',
+        title: 'Application mise à jour',
+        message: `Tu utilises maintenant la version ${appVersion}.`
+      })
+    }
     await Promise.all([get().refresh(), get().refreshLocal()])
   },
 
   async refresh(force = false) {
+    const seq = ++catalogSeq
     set({ refreshing: true })
     try {
       const catalog = await window.api.getCatalog(force)
+      if (seq !== catalogSeq) return
+      nextAutoRefresh = Date.now() + (catalog.error ? AUTO_REFRESH_RETRY_MS : AUTO_REFRESH_MS)
       set({ catalog })
       if (force && catalog.error) get().pushToast({ kind: 'error', title: 'Actualisation impossible', message: catalog.error })
     } finally {
-      set({ loading: false, refreshing: false })
+      if (seq === catalogSeq) set({ loading: false, refreshing: false })
     }
+  },
+
+  async autoRefresh() {
+    if (get().loading || get().refreshing || Date.now() < nextAutoRefresh) return
+    const seq = ++catalogSeq
+    nextAutoRefresh = Date.now() + AUTO_REFRESH_RETRY_MS
+    const catalog = await window.api.getCatalog().catch(() => null)
+    if (!catalog || seq !== catalogSeq) return
+    if (catalog.error) {
+      // Vérification silencieuse : on garde la liste affichée plutôt que d'annoncer une panne passagère.
+      if (get().catalog?.error) set({ catalog })
+      return
+    }
+    nextAutoRefresh = Date.now() + AUTO_REFRESH_MS
+    set({ catalog })
   },
 
   async refreshLocal() {
@@ -232,12 +276,50 @@ export const useStore = create<State>((set, get) => ({
 
   async installAppUpdate() {
     const update = get().catalog?.appUpdate
-    if (!update) return
-    set({ appUpdateProgress: { done: 0, total: update.installerSize } })
-    const result = await window.api.installAppUpdate(update)
-    if (!result.ok) {
-      set({ appUpdateProgress: null })
-      get().pushToast({ kind: 'error', title: 'Mise à jour impossible', message: result.error })
+    if (!update || get().appUpdateProgress) return
+    set({ appUpdateProgress: { phase: 'downloading', done: 0, total: update.installerSize } })
+    const result = await window.api.installAppUpdate()
+    // Réussite : l'installeur est lancé et l'application se ferme d'elle-même.
+    if (result.ok) return
+    set({ appUpdateProgress: null })
+    if (result.reason === 'busy') {
+      get().pushToast({ kind: 'info', title: 'Mise à jour reportée', message: result.error })
+    } else if (result.reason === 'failed') {
+      get().pushToast({
+        kind: 'error',
+        title: 'Mise à jour impossible',
+        message: result.error,
+        action: { label: 'Télécharger depuis GitHub', run: () => void window.api.openExternal(update.releaseUrl) }
+      })
+    }
+  },
+
+  cancelAppUpdate() {
+    void window.api.cancelAppUpdate()
+  },
+
+  dismissAppUpdate() {
+    set({ updateDismissed: get().catalog?.appUpdate?.version ?? null })
+  },
+
+  showAppUpdate() {
+    set({ updateDismissed: null })
+  },
+
+  async checkAppUpdate() {
+    await get().refresh(true)
+    const catalog = get().catalog
+    // Hors ligne : `refresh` l'a déjà signalé.
+    if (!catalog || catalog.error) return
+    if (catalog.appUpdate) {
+      // La proposition est en haut de la fenêtre : on la montre, même remise à plus tard.
+      set({ updateDismissed: null, settingsOpen: false })
+    } else {
+      get().pushToast({
+        kind: 'success',
+        title: 'Application à jour',
+        message: `La version ${get().appVersion} est la plus récente.`
+      })
     }
   },
 

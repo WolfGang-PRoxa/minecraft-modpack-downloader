@@ -1,8 +1,7 @@
 import type { ReactNode } from 'react'
-import { CircleArrowUp, ExternalLink, FolderOpen, Monitor, TriangleAlert, WifiOff } from 'lucide-react'
+import { ExternalLink, FolderOpen, Monitor, TriangleAlert, WifiOff } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { CURSEFORGE_DOWNLOAD_URL } from '../../../shared/config'
-import { formatBytes } from '../lib/format'
 import { useStore } from '../store'
 import { Button } from './Button'
 
@@ -13,32 +12,6 @@ function Banner({ icon: Icon, tone, children, action }: { icon: LucideIcon; tone
       <div className="min-w-0 flex-1 text-sm text-ink-100">{children}</div>
       {action}
     </div>
-  )
-}
-
-export function AppUpdateBanner() {
-  const update = useStore((s) => s.catalog?.appUpdate)
-  const progress = useStore((s) => s.appUpdateProgress)
-  const install = useStore((s) => s.installAppUpdate)
-  if (!update) return null
-
-  const percent = progress && progress.total ? Math.round((progress.done / progress.total) * 100) : null
-  return (
-    <Banner
-      icon={CircleArrowUp}
-      tone="bg-sky-400/10 text-sky-300 ring-sky-400/25"
-      action={
-        <Button size="sm" variant="primary" disabled={progress !== null} onClick={() => void install()}>
-          {progress ? `Téléchargement${percent !== null ? ` ${percent} %` : '…'}` : 'Mettre à jour'}
-        </Button>
-      }
-    >
-      <strong className="font-semibold">Nouvelle version de l’application : v{update.version}</strong>
-      <span className="text-ink-300">
-        {' '}
-        · {update.installerSize ? `${formatBytes(update.installerSize)} · ` : ''}l’application redémarrera toute seule.
-      </span>
-    </Banner>
   )
 }
 

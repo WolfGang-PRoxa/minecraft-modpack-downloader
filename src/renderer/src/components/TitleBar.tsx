@@ -1,4 +1,4 @@
-import { CloudUpload, Library, Maximize2, Minimize2, Minus, RefreshCw, Settings, X } from 'lucide-react'
+import { CircleArrowUp, CloudUpload, Library, Maximize2, Minimize2, Minus, RefreshCw, Settings, X } from 'lucide-react'
 import type { AppView } from '../../../shared/types'
 import { useStudio } from '../studio/store'
 import { useStore } from '../store'
@@ -24,6 +24,27 @@ function CurseForgeChip() {
         <span className={`relative size-2 rounded-full ${ok ? 'bg-curseforge' : 'bg-ink-500'}`} />
       </span>
       {ok ? 'CurseForge' : 'CurseForge introuvable'}
+    </button>
+  )
+}
+
+/** Mise à jour remise à plus tard : un rappel discret, qui rouvre la proposition. */
+function UpdateChip() {
+  const version = useStore((s) => s.catalog?.appUpdate?.version ?? null)
+  const dismissed = useStore((s) => s.updateDismissed)
+  const updating = useStore((s) => s.appUpdateProgress !== null)
+  const show = useStore((s) => s.showAppUpdate)
+  if (!version || dismissed !== version || updating) return null
+  return (
+    <button
+      type="button"
+      onClick={show}
+      title={`Mettre à jour vers la version ${version}`}
+      className="no-drag mr-1 flex shrink-0 items-center gap-2 rounded-full bg-sky-400/10 px-2.5 py-1.5 text-xs font-medium whitespace-nowrap text-sky-200 ring-1 ring-inset ring-sky-400/25 transition hover:bg-sky-400/20 lg:pr-3.5 lg:pl-3"
+    >
+      <CircleArrowUp size={14} />
+      {/* Fenêtre étroite : l'icône seule, pour laisser sa place au reste de la barre de titre. */}
+      <span className="hidden lg:inline">Mise à jour</span>
     </button>
   )
 }
@@ -82,6 +103,7 @@ export function TitleBar() {
       <div className="flex-1" />
 
       <div className="no-drag flex items-center gap-1">
+        <UpdateChip />
         <CurseForgeChip />
         <div className="mx-2 h-5 w-px bg-white/10" />
         <IconButton

@@ -4,6 +4,7 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
 import type { ActionResult, RangerOrders } from '../../shared/studio'
+import { appUpdateTask } from '../appUpdate'
 import { resolveCredential } from '../auth'
 import { resolveInstancesDir } from '../curseforge'
 import { pathExists } from '../fsutil'
@@ -84,6 +85,11 @@ async function action(run: () => Promise<unknown>): Promise<ActionResult> {
   }
 }
 
+/** Opération du studio qu'une fermeture de l'application interromprait (« la publication »…), sinon null. */
+export function studioTask(): string | null {
+  return service?.currentTask ?? null
+}
+
 /** Arrête proprement une publication ou une création de zip en cours (fermeture de la fenêtre). */
 export function stopStudioTasks(): void {
   publishController?.abort()
@@ -102,7 +108,8 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
     getAppSettings: getSettings,
     getCredential: () => resolveCredential(),
     coverUrl,
-    onAnalyzing: (fileName) => send('studio:analyzing', fileName)
+    onAnalyzing: (fileName) => send('studio:analyzing', fileName),
+    blockedBy: appUpdateTask
   })
   registerCoverProtocol()
   restartWatcher()

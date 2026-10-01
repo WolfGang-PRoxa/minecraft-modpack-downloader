@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, protocol, shell } from 'electron'
 import { join } from 'node:path'
+import { cleanAppUpdateDownloads, noteRunningVersion } from './appUpdate'
 import { setGitHubApiOverride } from './githubEnv'
 import { registerIpc } from './ipc'
 import { useSettingsFile } from './settings'
@@ -87,7 +88,9 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     app.setAppUserModelId('com.wolfgangproxa.modpackdownloader')
     Menu.setApplicationMenu(null)
-    registerIpc(() => mainWindow)
+    const justUpdated = await noteRunningVersion()
+    cleanAppUpdateDownloads()
+    registerIpc(() => mainWindow, { justUpdated })
     await registerStudio(() => mainWindow)
     createWindow()
   })

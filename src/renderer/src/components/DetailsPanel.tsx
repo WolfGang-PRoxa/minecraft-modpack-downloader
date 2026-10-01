@@ -95,7 +95,7 @@ export function DetailsPanel() {
   const current = installed.find((i) => i.id === modpack.id)
 
   return (
-    <div className="fixed inset-x-0 top-14 bottom-0 z-40 flex justify-end">
+    <div className="absolute inset-0 z-40 flex justify-end">
       <div className="animate-fade-in absolute inset-0 bg-ink-950/60 backdrop-blur-sm" onClick={() => select(null)} />
 
       <aside

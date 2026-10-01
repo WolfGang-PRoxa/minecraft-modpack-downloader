@@ -44,7 +44,10 @@ async function loadCaches(): Promise<void> {
 
 class GitHubError extends Error {}
 
-/** GET sur l'API GitHub avec cache ETag : une réponse 304 ne consomme pas le quota. */
+/**
+ * GET sur l'API GitHub avec cache ETag. Sans connexion, GitHub décompte aussi les réponses 304 du quota
+ * (60 requêtes par heure et par adresse IP) : les vérifications automatiques restent donc espacées.
+ */
 async function apiGet<T>(url: string, repo: RepoRef): Promise<T> {
   const cached = httpCache![url]
   const headers: Record<string, string> = {
@@ -130,21 +133,32 @@ async function buildModpackVersions(releases: GhRelease[], offline: boolean): Pr
   return versions.filter((v): v is ModpackVersion => v !== null)
 }
 
+function sha256FromDigest(digest: string | null | undefined): string | null {
+  const match = /^sha256:([0-9a-f]{64})$/i.exec(digest ?? '')
+  return match ? match[1].toLowerCase() : null
+}
+
+/** Version la plus récente de l'application, si elle est plus récente que celle qui tourne. */
 function findAppUpdate(releases: GhRelease[]): AppUpdateInfo | null {
-  let best: { release: GhRelease; version: string } | null = null
+  let best: { release: GhRelease; version: string; installer: GhAsset } | null = null
   for (const release of releases) {
     if (release.draft || release.prerelease || !release.tag_name.startsWith(APP_TAG_PREFIX)) continue
+    // Une release dont l'installeur n'est pas (encore) en ligne n'est pas proposée : il n'y aurait rien à installer.
+    const installer = release.assets.find(
+      (a) => a.name.toLowerCase().endsWith('.exe') && (a.state ?? 'uploaded') === 'uploaded'
+    )
+    if (!installer) continue
     const version = release.tag_name.slice(APP_TAG_PREFIX.length)
-    if (!best || compareVersions(version, best.version) > 0) best = { release, version }
+    if (!best || compareVersions(version, best.version) > 0) best = { release, version, installer }
   }
   if (!best || compareVersions(best.version, app.getVersion()) <= 0) return null
-  const installer = best.release.assets.find((a) => a.name.toLowerCase().endsWith('.exe'))
   return {
     version: best.version,
     notes: best.release.body ?? '',
     releaseUrl: best.release.html_url,
-    installerUrl: installer?.browser_download_url ?? null,
-    installerSize: installer?.size ?? 0
+    installerUrl: best.installer.browser_download_url,
+    installerSize: best.installer.size,
+    installerSha256: sha256FromDigest(best.installer.digest)
   }
 }
 

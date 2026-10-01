@@ -49,8 +49,10 @@ export interface AppUpdateInfo {
   version: string
   notes: string
   releaseUrl: string
-  installerUrl: string | null
+  installerUrl: string
   installerSize: number
+  /** Empreinte de l'installeur publiée par GitHub, comparée à celle du fichier téléchargé. */
+  installerSha256: string | null
 }
 
 export interface Catalog {
@@ -113,6 +115,8 @@ export interface Settings {
   workspaceDir: string | null
   /** Dernière vue affichée, rouverte au lancement suivant. */
   lastView: AppView
+  /** Version de l'application au dernier lancement : sert à annoncer qu'une mise à jour vient d'être installée. */
+  lastRunVersion: string | null
 }
 
 /** D'où vient la connexion GitHub : connexion faite dans l'application, ou repli sur une session existante. */
@@ -189,8 +193,20 @@ export type InstallResult =
   | { ok: false; cancelled: boolean; error: string }
 
 export interface AppUpdateProgress {
+  /** `installing` : l'installeur est lancé, l'application se ferme. */
+  phase: 'downloading' | 'installing'
   done: number
   total: number
+}
+
+/** `busy` : une opération en cours (installation d'un modpack, publication…) serait interrompue par le redémarrage. */
+export type AppUpdateResult = { ok: true } | { ok: false; reason: 'cancelled' | 'busy' | 'failed'; error: string }
+
+export interface LaunchInfo {
+  /** Vue demandée au lancement (`--studio`), sinon null. */
+  view: AppView | null
+  /** L'application vient d'être mise à jour : annoncé une seule fois. */
+  justUpdated: boolean
 }
 
 /** Choix du rôle, commun à l'application et au studio. */
@@ -203,8 +219,7 @@ export interface RoleApi {
 
 /** API exposée au renderer par le preload (`window.api`). */
 export interface RendererApi extends AuthApi, RoleApi {
-  /** Vue demandée au lancement (`--studio`), sinon null. */
-  getLaunchView(): Promise<AppView | null>
+  getLaunchInfo(): Promise<LaunchInfo>
   /** L'application a été relancée alors qu'elle tournait : relire l'état, et ouvrir la vue demandée. */
   onActivated(listener: (view: AppView | null) => void): () => void
   getCatalog(force?: boolean): Promise<Catalog>
@@ -222,7 +237,9 @@ export interface RendererApi extends AuthApi, RoleApi {
   openPath(path: string): Promise<void>
   openExternal(url: string): Promise<void>
   getAppVersion(): Promise<string>
-  installAppUpdate(update: AppUpdateInfo): Promise<{ ok: boolean; error?: string }>
+  /** Télécharge puis lance l'installeur de la dernière version : l'application se ferme et se relance toute seule. */
+  installAppUpdate(): Promise<AppUpdateResult>
+  cancelAppUpdate(): Promise<void>
   onAppUpdateProgress(listener: (progress: AppUpdateProgress) => void): () => void
   minimizeWindow(): void
   toggleFullscreen(): void

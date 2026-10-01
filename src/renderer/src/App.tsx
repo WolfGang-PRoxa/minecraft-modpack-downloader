@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { AppUpdateBanner, CurseForgeMissingBanner, OfflineBanner, ShortcutBanner } from './components/Banners'
+import { CurseForgeMissingBanner, OfflineBanner, ShortcutBanner } from './components/Banners'
 import { DetailsPanel } from './components/DetailsPanel'
 import { Hero } from './components/Hero'
 import { ModpackCard } from './components/ModpackCard'
@@ -7,6 +7,7 @@ import { SettingsDialog } from './components/SettingsDialog'
 import { EmptyView, ErrorView, LoadingView } from './components/States'
 import { TitleBar } from './components/TitleBar'
 import { Toasts } from './components/Toasts'
+import { UpdateBar } from './components/UpdateBar'
 import { SetupView } from './components/Usage'
 import { StudioView } from './studio/StudioView'
 import { useStore } from './store'
@@ -46,6 +47,7 @@ function Library() {
 export function App() {
   const init = useStore((s) => s.init)
   const refreshLocal = useStore((s) => s.refreshLocal)
+  const autoRefresh = useStore((s) => s.autoRefresh)
   // Premier lancement : le rôle n'est pas encore choisi.
   const needsSetup = useStore((s) => s.settings !== null && s.settings.role === null)
   const studio = useStore((s) => s.view === 'studio' && s.settings?.role === 'publisher')
@@ -53,10 +55,18 @@ export function App() {
   useEffect(() => {
     void init()
     // Si l'utilisateur supprime un profil dans CurseForge, on le voit au retour sur la fenêtre.
-    const onFocus = () => void refreshLocal()
+    const onFocus = () => {
+      void refreshLocal()
+      void autoRefresh()
+    }
     window.addEventListener('focus', onFocus)
-    return () => window.removeEventListener('focus', onFocus)
-  }, [init, refreshLocal])
+    // Application laissée ouverte : une nouvelle version finit par être proposée sans la relancer.
+    const timer = setInterval(() => void autoRefresh(), 60_000)
+    return () => {
+      window.removeEventListener('focus', onFocus)
+      clearInterval(timer)
+    }
+  }, [init, refreshLocal, autoRefresh])
 
   return (
     <div className="relative flex h-full flex-col">
@@ -67,23 +77,25 @@ export function App() {
       </div>
 
       <TitleBar />
-      <main className="relative flex-1 overflow-y-auto">
-        {needsSetup ? (
-          <SetupView />
-        ) : studio ? (
-          <StudioView />
-        ) : (
-          <>
-            <AppUpdateBanner />
-            <CurseForgeMissingBanner />
-            <OfflineBanner />
-            <ShortcutBanner />
-            <Library />
-          </>
-        )}
-      </main>
+      <UpdateBar />
+      <div className="relative min-h-0 flex-1 overflow-hidden">
+        <main className="relative h-full overflow-y-auto">
+          {needsSetup ? (
+            <SetupView />
+          ) : studio ? (
+            <StudioView />
+          ) : (
+            <>
+              <CurseForgeMissingBanner />
+              <OfflineBanner />
+              <ShortcutBanner />
+              <Library />
+            </>
+          )}
+        </main>
+        <DetailsPanel />
+      </div>
 
-      <DetailsPanel />
       <SettingsDialog />
       <Toasts />
     </div>

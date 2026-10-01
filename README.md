@@ -26,6 +26,24 @@ Si tu relances l'installeur alors que l'application est déjà installée, il le
 l'ouvrir (ou de la réinstaller) au lieu de tout réinstaller. Un installeur plus récent met à jour sans question ; un
 installeur plus ancien te prévient avant de revenir en arrière.
 
+L'application s'installe pour ton compte Windows, sans droits d'administrateur, dans
+`%LOCALAPPDATA%\Programs\minecraft-modpack-downloader` (soit `C:\Users\<toi>\AppData\Local\Programs\…`), avec un
+raccourci dans le menu Démarrer. Tes réglages sont dans `%APPDATA%\Modpack Downloader` ; les modpacks, eux, vont
+dans le dossier `Instances` de CurseForge. Pour la désinstaller : **Paramètres Windows → Applications**.
+
+### Mises à jour de l'application
+
+Quand une nouvelle version de l'application sort, une barre l'annonce **en haut de la fenêtre**, quelle que soit la
+vue. **Mettre à jour** télécharge le nouvel installeur et vérifie son empreinte ; l'application se ferme, s'installe
+et se relance toute seule dans la nouvelle version, sans rien te demander. Tes réglages, ta connexion GitHub et tes
+modpacks ne bougent pas. **Plus tard** replie la barre en un rappel dans la barre de titre, jusqu'au prochain
+lancement.
+
+L'application regarde s'il existe une nouvelle version à chaque lancement, puis toutes les 30 minutes tant qu'elle
+reste ouverte ; **Paramètres → À propos → Rechercher une mise à jour** le fait tout de suite. Pour ne rien
+interrompre, la mise à jour ne démarre pas pendant l'installation d'un modpack ou une publication : termine d'abord
+l'opération en cours.
+
 `F11` : passer du plein écran à une fenêtre.
 
 ## Publier un modpack : le Studio
@@ -117,7 +135,8 @@ dans l'application, sinon `GITHUB_TOKEN`, un fichier `.env` (`GITHUB_TOKEN=…`,
    ```
 
 GitHub Actions construit l'installeur, le fait signer (voir ci-dessous) et crée la release. Les applications déjà
-installées affichent un bandeau « Nouvelle version » et se mettent à jour en un clic.
+installées proposent alors la nouvelle version en haut de leur fenêtre et se mettent à jour en un clic (voir
+[Mises à jour de l'application](#mises-à-jour-de-lapplication)).
 
 ### Signature du code (mainteneur)
 
@@ -188,6 +207,10 @@ Licence : [MIT](LICENSE).
   ce dossier et affiche le nouveau profil immédiatement.
 - Le dossier `Instances` est détecté automatiquement (y compris s'il a été déplacé dans CurseForge) et peut être
   changé dans les paramètres de l'application.
+- Les versions de l'application sont les releases `app-v<version>` de ce dépôt, quel que soit le dépôt de modpacks
+  suivi. Pour se mettre à jour, l'application télécharge l'installeur de la plus récente, compare son empreinte
+  SHA-256 à celle que GitHub publie pour ce fichier, puis le lance avec `--updated` et se ferme : l'installeur
+  remplace les fichiers et relance l'application.
 - Le studio compare chaque zip local (empreinte SHA-256, gardée en cache dans `.studio-cache.json`) au
   `modpack.json` de la release correspondante, et ne renvoie que ce qui a changé. Une release est créée en brouillon
   et n'apparaît qu'une fois tous ses fichiers envoyés ; un fichier remplacé est d'abord envoyé sous un autre nom,
