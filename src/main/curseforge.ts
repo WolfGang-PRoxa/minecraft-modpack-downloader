@@ -1,10 +1,10 @@
 import { execFile, spawn } from 'node:child_process'
 import { open, readdir, stat } from 'node:fs/promises'
 import { homedir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { promisify } from 'node:util'
 import { CURSEFORGE_OVERWOLF_UID } from '../shared/config'
-import type { CurseForgeFlavor, CurseForgeStatus, Settings } from '../shared/types'
+import type { CurseForgeFlavor, CurseForgeRestartResult, CurseForgeStatus, Settings } from '../shared/types'
 import { pathExists } from './fsutil'
 
 const execFileAsync = promisify(execFile)
@@ -137,6 +137,108 @@ export async function getCurseForgeStatus(settings: Settings): Promise<CurseForg
     instancesDirSource: source,
     instancesDirExists: await pathExists(dir)
   }
+}
+
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Processus de CurseForge : l'application autonome et tout ce qu'elle embarque, ou l'application Overwolf (son
+ * processus vit dans `Overwolf\ProcessCache\<version>\<uid>`, ses composants dans `Overwolf\Extensions\<uid>`).
+ * Jamais Overwolf lui-même, ni Minecraft, ni ce qui tourne depuis le dossier du jeu (lanceur officiel…).
+ */
+async function curseForgeProcesses(instancesDir: string): Promise<number[]> {
+  if (process.platform !== 'win32') return []
+  const launcher = await findLauncher()
+  // Comparés en minuscules, avec des « \ » et un « \ » final : « C:\A\B » ne doit pas couvrir « C:\A\Bis ».
+  const folder = (path: string) => `${path.replace(/\//g, '\\').replace(/\\+$/, '')}\\`.toLowerCase()
+  const roots = [
+    join(localAppData(), 'Programs', 'CurseForge Windows'),
+    join(roamingAppData(), 'CurseForge'),
+    join(localAppData(), 'CurseForge'),
+    ...(launcher?.flavor === 'standalone' ? [dirname(launcher.command)] : [])
+  ].map(folder)
+  const gameRoot = folder(dirname(instancesDir))
+  const overwolfApp = `\\${CURSEFORGE_OVERWOLF_UID}\\`
+  try {
+    const { stdout } = await execFileAsync(
+      'powershell.exe',
+      [
+        '-NoProfile',
+        '-NonInteractive',
+        '-Command',
+        "Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath } | ForEach-Object { '{0}|{1}' -f $_.ProcessId, $_.ExecutablePath }"
+      ],
+      { windowsHide: true, timeout: 15_000, maxBuffer: 16 * 1024 * 1024 }
+    )
+    const pids: number[] = []
+    for (const line of stdout.split(/\r?\n/)) {
+      const separator = line.indexOf('|')
+      const pid = Number(line.slice(0, separator))
+      const path = line.slice(separator + 1).trim().replace(/\//g, '\\').toLowerCase()
+      if (separator < 1 || !pid || pid === process.pid) continue
+      if (/\\javaw?\.exe$/.test(path) || path.startsWith(gameRoot)) continue
+      if (path.includes(overwolfApp) || roots.some((root) => path.startsWith(root))) pids.push(pid)
+    }
+    return pids
+  } catch {
+    return []
+  }
+}
+
+/** CurseForge est ouvert (fenêtre ou zone de notification). */
+export async function isCurseForgeRunning(instancesDir: string): Promise<boolean> {
+  return (await curseForgeProcesses(instancesDir)).length > 0
+}
+
+function isAlive(pid: number): boolean {
+  try {
+    process.kill(pid, 0)
+    return true
+  } catch (err) {
+    return (err as NodeJS.ErrnoException).code === 'EPERM'
+  }
+}
+
+/** Attend la fin de ces processus ; renvoie ceux qui tournent encore au bout du délai. */
+async function waitForExit(pids: number[], timeoutMs: number): Promise<number[]> {
+  const deadline = Date.now() + timeoutMs
+  let alive = pids.filter(isAlive)
+  while (alive.length > 0 && Date.now() < deadline) {
+    await sleep(250)
+    alive = alive.filter(isAlive)
+  }
+  return alive
+}
+
+/** Sans `force`, Windows demande à leurs fenêtres de se fermer, comme un clic sur la croix. */
+function taskkill(pids: number[], force: boolean): Promise<void> {
+  const args = [...(force ? ['/F'] : []), ...pids.flatMap((pid) => ['/PID', String(pid)])]
+  return new Promise((resolve) => execFile('taskkill', args, { windowsHide: true, timeout: 15_000 }, () => resolve()))
+}
+
+/**
+ * Ferme CurseForge puis le rouvre : il relit alors tout le dossier Instances, ce qu'il ne fait qu'au démarrage.
+ * C'est ce qui affiche un modpack installé ou mis à jour pendant qu'il était ouvert. Refusé si Minecraft tourne
+ * depuis l'un de ses profils.
+ */
+export async function restartCurseForge(instancesDir: string): Promise<CurseForgeRestartResult> {
+  if (await isGameRunningFrom(instancesDir)) {
+    return { ok: false, error: 'Minecraft est lancé depuis CurseForge : ferme le jeu, puis relance CurseForge.' }
+  }
+  const pids = await curseForgeProcesses(instancesDir)
+  if (pids.length > 0) {
+    // D'abord comme la croix de sa fenêtre ; s'il reste dans la zone de notification, de force.
+    await taskkill(pids, false)
+    let alive = await waitForExit(pids, 5000)
+    if (alive.length > 0) {
+      await taskkill(alive, true)
+      alive = await waitForExit(alive, 5000)
+    }
+    if (alive.length > 0) return { ok: false, error: 'CurseForge ne s’est pas fermé : ferme-le à la main, puis rouvre-le.' }
+    // Le temps pour Overwolf de constater la fermeture de l'application avant de la relancer.
+    await sleep(1000)
+  }
+  return (await launchCurseForge()) ? { ok: true } : { ok: false, error: 'CurseForge est introuvable sur ce PC.' }
 }
 
 /** Indique si un Minecraft (java/javaw) tourne actuellement depuis ce dossier d'instance. */

@@ -204,8 +204,17 @@ export interface InstallProgress {
 }
 
 export type InstallResult =
-  | { ok: true; installed: InstalledModpack; updated: boolean; curseForgeLaunched: boolean }
+  | {
+      ok: true
+      installed: InstalledModpack
+      updated: boolean
+      curseForgeLaunched: boolean
+      /** CurseForge était déjà ouvert : il peut ne pas afficher le profil avant d'être relancé. */
+      curseForgeRunning: boolean
+    }
   | { ok: false; cancelled: boolean; error: string }
+
+export type CurseForgeRestartResult = { ok: true } | { ok: false; error: string }
 
 export interface AppUpdateProgress {
   /** `installing` : l'installeur est lancé, l'application se ferme. */
@@ -267,6 +276,8 @@ export interface RendererApi extends AuthApi, RoleApi {
   onInstallProgress(listener: (progress: InstallProgress) => void): () => void
   getCurseForgeStatus(): Promise<CurseForgeStatus>
   launchCurseForge(): Promise<boolean>
+  /** Ferme puis rouvre CurseForge, pour qu'il relise ses profils. */
+  restartCurseForge(): Promise<CurseForgeRestartResult>
   getSettings(): Promise<Settings>
   updateSettings(patch: Partial<Settings>): Promise<Settings>
   pickInstancesDir(): Promise<Settings | null>

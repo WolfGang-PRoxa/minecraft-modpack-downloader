@@ -17,6 +17,7 @@ const api: RendererApi = {
   onInstallProgress: (listener) => subscribe('install:progress', listener),
   getCurseForgeStatus: () => ipcRenderer.invoke('curseforge:status'),
   launchCurseForge: () => ipcRenderer.invoke('curseforge:launch'),
+  restartCurseForge: () => ipcRenderer.invoke('curseforge:restart'),
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (patch) => ipcRenderer.invoke('settings:update', patch),
   pickInstancesDir: () => ipcRenderer.invoke('settings:pickInstancesDir'),

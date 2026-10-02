@@ -53,6 +53,8 @@ interface State {
   install(version: ModpackVersion): Promise<void>
   cancelInstall(): void
   launchCurseForge(): Promise<void>
+  /** Ferme puis rouvre CurseForge, pour qu'il affiche un modpack installé pendant qu'il était ouvert. */
+  restartCurseForge(): Promise<void>
   select(id: string | null): void
   setSettingsOpen(open: boolean): void
   setReportOpen(open: boolean): void
@@ -92,6 +94,7 @@ function presentIn(catalog: Catalog | null, installed: InstalledModpack[], profi
 }
 
 let toastSeq = 0
+let restartingCurseForge = false
 let initialized = false
 let nextAutoRefresh = 0
 // Seule la réponse à la dernière lecture demandée est gardée (changement de dépôt pendant une lecture…).
@@ -201,14 +204,26 @@ export const useStore = create<State>((set, get) => ({
     try {
       const result = await window.api.install(version)
       if (result.ok) {
-        get().pushToast({
-          kind: 'success',
-          title: result.updated ? `${version.name} est à jour` : `${version.name} est installé`,
-          message: result.curseForgeLaunched
-            ? 'CurseForge est ouvert : lance le profil depuis l’onglet Minecraft.'
-            : 'Le profil est disponible dans CurseForge, onglet Minecraft.',
-          action: result.curseForgeLaunched ? undefined : { label: 'Ouvrir CurseForge', run: () => void get().launchCurseForge() }
-        })
+        const title = result.updated ? `${version.name} est à jour` : `${version.name} est installé`
+        if (result.curseForgeRunning) {
+          // CurseForge ne relit ses profils qu'au démarrage : ouvert pendant l'installation, il peut ne pas voir celui-ci.
+          get().pushToast({
+            kind: 'success',
+            title,
+            message: 'CurseForge était déjà ouvert : s’il n’affiche pas encore ce modpack, relance-le.',
+            action: { label: 'Relancer CurseForge', run: () => void get().restartCurseForge() },
+            sticky: true
+          })
+        } else {
+          get().pushToast({
+            kind: 'success',
+            title,
+            message: result.curseForgeLaunched
+              ? 'CurseForge est ouvert : lance le profil depuis l’onglet Minecraft.'
+              : 'Le profil est disponible dans CurseForge, onglet Minecraft.',
+            action: result.curseForgeLaunched ? undefined : { label: 'Ouvrir CurseForge', run: () => void get().launchCurseForge() }
+          })
+        }
       } else if (result.cancelled) {
         get().pushToast({ kind: 'info', title: 'Installation annulée' })
       } else {
@@ -223,6 +238,24 @@ export const useStore = create<State>((set, get) => ({
   cancelInstall() {
     const id = get().busyId
     if (id) void window.api.cancelInstall(id)
+  },
+
+  async restartCurseForge() {
+    if (restartingCurseForge) return
+    restartingCurseForge = true
+    get().pushToast({ kind: 'info', title: 'Relance de CurseForge…', message: 'Il se ferme puis se rouvre avec tous ses profils.' })
+    try {
+      const result = await window.api.restartCurseForge()
+      get().pushToast(
+        result.ok
+          ? { kind: 'success', title: 'CurseForge relancé', message: 'Les modpacks installés sont dans l’onglet Minecraft.' }
+          : { kind: 'error', title: 'CurseForge n’a pas été relancé', message: result.error }
+      )
+    } catch (err) {
+      get().pushToast({ kind: 'error', title: 'CurseForge n’a pas été relancé', message: String(err) })
+    } finally {
+      restartingCurseForge = false
+    }
   },
 
   async launchCurseForge() {
@@ -355,7 +388,7 @@ export const useStore = create<State>((set, get) => ({
   pushToast(toast) {
     const id = ++toastSeq
     set((s) => ({ toasts: [...s.toasts, { ...toast, id }] }))
-    setTimeout(() => get().dismissToast(id), toast.kind === 'error' ? 10_000 : 7_000)
+    if (!toast.sticky) setTimeout(() => get().dismissToast(id), toast.kind === 'error' ? 10_000 : 7_000)
   },
 
   dismissToast(id) {

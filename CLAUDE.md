@@ -40,9 +40,13 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
     `findAppUpdate` ne propose qu'une release dont l'installeur `.exe` est en ligne.
   - `installer.ts` : téléchargement → vérif SHA-256 → extraction dans un dossier de travail sur le même disque
     que `Instances` → basculement par renommage. Mise à jour sur place en conservant les données du joueur
-    (`PLAYER_DATA`) et ses champs de `minecraftinstance.json` (`PRESERVED_INSTANCE_FIELDS`).
+    (`PLAYER_DATA`) et ses champs de `minecraftinstance.json` (`PRESERVED_INSTANCE_FIELDS`). `minecraftinstance.json`
+    n'entre dans l'instance qu'une fois le dossier en place, puis il est réécrit (`placeInstanceFile`) : voir « Faits
+    CurseForge ». `InstallResult.curseForgeRunning` fait proposer « Relancer CurseForge » au lieu de l'ouvrir.
   - `curseforge.ts` : détection (protocole `curseforge://` dans `HKCR`, puis chemins connus Overwolf/autonome),
-    lancement, dossier `Instances` (réglage > logs CurseForge > défaut), détection de Minecraft lancé.
+    lancement, dossier `Instances` (réglage > logs CurseForge > défaut), détection de Minecraft lancé, relance
+    (`restartCurseForge`, canal `curseforge:restart` : ses processus fermés poliment puis de force, jamais Overwolf,
+    Minecraft ni ce qui tourne depuis le dossier du jeu ; refusée si Minecraft tourne).
   - `settings.ts` (Node pur, sans cache) : `settings.json` du `userData` — `role` (`null` = premier lancement),
     `repo`, `workspaceDir` (dossier des modpacks), `lastView` (vue rouverte au lancement), `lastRunVersion`…
     Lu aussi par les scripts (`%APPDATA%\Modpack Downloader\settings.json`).
@@ -154,9 +158,15 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
 
 ## Faits CurseForge vérifiés
 
-- CurseForge (Overwolf) pose un file watcher sur le dossier `Instances` et relit chaque `minecraftinstance.json` :
-  pas besoin de le redémarrer. Il écrit le chemin du dossier dans ses logs
+- CurseForge écrit le chemin du dossier `Instances` dans ses logs
   (`%LOCALAPPDATA%\Overwolf\Log\Apps\CurseForge\CurseClient\*.json`, « Setting file watcher on instance directory »).
+- CurseForge ne relit tous ses profils qu'à son démarrage (constaté sur la version Overwolf) : ouvert, il ne voit pas
+  une instance déplacée d'un bloc dans `Instances`, et une mise à jour par échange de dossier la fait disparaître
+  (« 404 » dans son interface) ; le relancer règle les deux. Malgré son file watcher, on ignore à quels événements il
+  réagit : l'installeur pose `minecraftinstance.json` en dernier puis le réécrit (sans effet prouvé), et la fenêtre
+  propose de le relancer.
+- Sous Overwolf, l'application CurseForge tourne dans `%LOCALAPPDATA%\Overwolf\ProcessCache\<version>\<uid>\CurseForge.exe`
+  (d'après les fiches de processus publiées en ligne, pas encore observé sur un PC).
 - Lancer CurseForge alors qu'il tourne déjà remet simplement sa fenêtre au premier plan.
 - UID Overwolf de CurseForge : `cchhcaiapeikjbdbpfplgmpobbcdkdaphclbmkbj`.
 
@@ -209,6 +219,9 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   l'envoi terminé).
 - `child_process.spawn` signale certaines erreurs par l'événement `error` (fichier absent, accès refusé) et lève les
   autres tout de suite (exécutable invalide : `spawn UNKNOWN`) : gérer les deux.
+- Tester la relance de CurseForge hors Windows : `process.platform` forcé à `win32` avant d'importer `curseforge.ts`
+  (avec tsx), et de faux `powershell.exe`, `taskkill` et `reg` en tête du `PATH` ; `LOCALAPPDATA` pointe vers un
+  dossier où `Programs\CurseForge Windows\CurseForge.exe` est un script.
 - Tester la mise à jour de l'app de bout en bout : deux installeurs sous l'identité de test (une version ancienne,
   une récente), la récente servie par le faux serveur comme asset `.exe` d'une release `app-v<version>`. L'app
   packagée ignorant `MPD_GITHUB_API`, compiler l'ancienne avec `setGitHubApiOverride(process.env.MPD_GITHUB_API)`

@@ -7,6 +7,8 @@ export interface ToastItem {
   title: string
   message?: string
   action?: { label: string; run: () => void }
+  /** Reste affichée jusqu'à ce qu'on la ferme (une action qu'on ne doit pas manquer). */
+  sticky?: boolean
 }
 
 const STYLES = {

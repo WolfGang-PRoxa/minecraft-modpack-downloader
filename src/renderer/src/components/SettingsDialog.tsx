@@ -46,6 +46,7 @@ export function SettingsDialog() {
   const appVersion = useStore((s) => s.appVersion)
   const updateSettings = useStore((s) => s.updateSettings)
   const pickInstancesDir = useStore((s) => s.pickInstancesDir)
+  const restartCurseForge = useStore((s) => s.restartCurseForge)
   const publisher = useStore((s) => s.settings?.role === 'publisher')
   const shortcut = useStore((s) => s.shortcut)
   const createShortcut = useStore((s) => s.createShortcut)
@@ -88,10 +89,20 @@ export function SettingsDialog() {
 
         <Section title="CurseForge">
           {curseForge?.installed ? (
-            <p className="text-sm text-ink-200">
-              CurseForge est installé
-              {curseForge.flavor === 'overwolf' ? ' (version Overwolf)' : ' (application autonome)'}.
-            </p>
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <p className="text-sm text-ink-200">
+                  CurseForge est installé
+                  {curseForge.flavor === 'overwolf' ? ' (version Overwolf)' : ' (application autonome)'}.
+                </p>
+                <p className="mt-0.5 text-xs text-ink-400">
+                  Un modpack installé pendant que CurseForge était ouvert n’y apparaît pas ? Relance-le : il relit ses profils.
+                </p>
+              </div>
+              <Button size="sm" icon={RotateCcw} onClick={() => void restartCurseForge()}>
+                Relancer CurseForge
+              </Button>
+            </div>
           ) : (
             <div className="flex items-center justify-between gap-4 rounded-xl bg-amber-glow/10 p-4 ring-1 ring-inset ring-amber-glow/30">
               <p className="text-sm text-ink-100">CurseForge n’a pas été trouvé sur ce PC. Il est nécessaire pour jouer.</p>
@@ -109,7 +120,9 @@ export function SettingsDialog() {
           <div className="mt-5 flex items-center justify-between gap-6">
             <div>
               <div className="text-sm font-medium text-ink-100">Ouvrir CurseForge après une installation</div>
-              <div className="mt-0.5 text-xs text-ink-400">Le modpack y apparaît automatiquement.</div>
+              <div className="mt-0.5 text-xs text-ink-400">
+                Le modpack y apparaît. S’il était déjà ouvert, l’application propose de le relancer.
+              </div>
             </div>
             <Toggle
               label="Ouvrir CurseForge après une installation"

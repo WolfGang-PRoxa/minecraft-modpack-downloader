@@ -2,7 +2,7 @@ import { BrowserWindow, dialog, ipcMain, shell, app } from 'electron'
 import type { InstallResult, IssueReport, LaunchInfo, ModpackVersion, Settings, ShortcutLocation } from '../shared/types'
 import { appUpdateTask, cancelAppUpdate, installAppUpdate } from './appUpdate'
 import { registerAuthIpc } from './authIpc'
-import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir } from './curseforge'
+import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir, restartCurseForge } from './curseforge'
 import { getCatalog } from './github'
 import { cancelInstall, installModpack, isInstalling, listInstalled } from './installer'
 import { listProfiles } from './profiles'
@@ -44,6 +44,7 @@ export function registerIpc(getWindow: () => BrowserWindow | null, launch: { jus
 
   ipcMain.handle('curseforge:status', async () => getCurseForgeStatus(await getSettings()))
   ipcMain.handle('curseforge:launch', () => launchCurseForge())
+  ipcMain.handle('curseforge:restart', async () => restartCurseForge((await resolveInstancesDir(await getSettings())).dir))
 
   ipcMain.handle('settings:get', () => getSettings())
   ipcMain.handle('settings:update', (_e, patch: Partial<Settings>) => {

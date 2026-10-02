@@ -19,6 +19,11 @@ Le modpack apparaît directement dans CurseForge, prêt à être lancé.
    suit le rôle, dans la même fenêtre.
 4. Dans l'application, clique sur **Installer**. CurseForge s'ouvre et le modpack est dans l'onglet Minecraft.
 
+CurseForge ne relit tous ses profils qu'à son démarrage : s'il était déjà ouvert pendant une installation ou une mise
+à jour, il peut ne pas afficher le modpack (ou afficher « 404 » à sa place). L'application le signale et propose
+**Relancer CurseForge** : il se ferme puis se rouvre avec tous ses profils. Le même bouton est dans **Paramètres →
+CurseForge**. Il n'agit pas pendant une partie : ferme d'abord Minecraft.
+
 Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
 tes captures d'écran et tes packs de ressources sont conservés.
 

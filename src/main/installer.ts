@@ -1,6 +1,6 @@
 import { app } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { mkdir, readdir, rmdir, stat } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rm, rmdir, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, relative } from 'node:path'
 import { CURSEFORGE_INSTANCE_FILE, INSTANCE_MARKER_FILE } from '../shared/config'
 import type {
@@ -10,7 +10,7 @@ import type {
   InstanceMarker,
   ModpackVersion
 } from '../shared/types'
-import { getCurseForgeStatus, isGameRunningFrom, launchCurseForge } from './curseforge'
+import { getCurseForgeStatus, isCurseForgeRunning, isGameRunningFrom, launchCurseForge } from './curseforge'
 import { downloadFile } from './download'
 import { pathExists, readJson, removeQuietly, renameWithRetry, writeJsonAtomic } from './fsutil'
 import { getSettings } from './settings'
@@ -60,6 +60,9 @@ const PRESERVED_INSTANCE_FIELDS = [
 ]
 
 const COVER_PREFIX = '.modpack-cover'
+
+/** Délai avant de réécrire minecraftinstance.json, une fois posé dans l'instance (voir placeInstanceFile). */
+const INSTANCE_FILE_TOUCH_DELAY = 400
 
 class UserError extends Error {}
 
@@ -185,6 +188,26 @@ function rewriteInstance(instance: InstanceJson, targetDir: string, previous: In
   return data
 }
 
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/**
+ * Pose minecraftinstance.json dans une instance déjà en place. CurseForge, s'il est ouvert, ne remarque pas un dossier
+ * déplacé d'un bloc dans Instances : le fichier arrive donc en dernier, complet (renommé depuis le dossier de travail,
+ * sur le même disque), puis il est réécrit à l'identique, comme quand un profil est créé ou modifié en place.
+ */
+async function placeInstanceFile(pending: string, target: string): Promise<void> {
+  const content = await readFile(pending)
+  try {
+    await renameWithRetry(pending, target)
+  } catch {
+    await writeFile(target, content)
+  }
+  await sleep(INSTANCE_FILE_TOUCH_DELAY)
+  // Si CurseForge l'a déjà réécrit, il l'a vu : on n'y touche plus.
+  const current = await readFile(target).catch(() => null)
+  if (current?.equals(content)) await writeFile(target, content).catch(() => {})
+}
+
 async function validImagePath(value: unknown, targetDir: string, stagingDir: string): Promise<boolean> {
   if (typeof value !== 'string' || !value) return false
   // Tant que l'instance est dans le dossier temporaire, on vérifie à son emplacement réel.
@@ -278,9 +301,13 @@ export async function installModpack(
       const currentValid = await validImagePath(current, targetDir, stagingDir)
       if (coverName && (isOurCover || !currentValid)) finalInstance.profileImagePath = join(targetDir, coverName)
       else if (!currentValid) finalInstance.profileImagePath = null
-      await writeJsonAtomic(instanceFile, finalInstance)
+      // minecraftinstance.json attend dans le dossier de travail : il n'entre dans l'instance qu'une fois celle-ci en place.
+      const pendingInstance = join(workDir!, CURSEFORGE_INSTANCE_FILE)
+      await writeJsonAtomic(pendingInstance, finalInstance)
+      await rm(instanceFile, { force: true })
       await writeJsonAtomic(join(stagingDir, INSTANCE_MARKER_FILE), marker)
       await renameWithRetry(stagingDir, targetDir)
+      await placeInstanceFile(pendingInstance, join(targetDir, CURSEFORGE_INSTANCE_FILE))
     }
 
     let targetDir: string
@@ -307,11 +334,15 @@ export async function installModpack(
       await finalize(targetDir, null)
     }
 
-    const curseForgeLaunched = settings.openCurseForgeAfterInstall ? await launchCurseForge() : false
+    // Déjà ouvert, CurseForge peut ne pas afficher le profil : la fenêtre propose alors de le relancer
+    // plutôt que de le mettre au premier plan tel quel.
+    const curseForgeRunning = await isCurseForgeRunning(instancesDir)
+    const curseForgeLaunched = settings.openCurseForgeAfterInstall && !curseForgeRunning ? await launchCurseForge() : false
     return {
       ok: true,
       updated: previous !== null,
       curseForgeLaunched,
+      curseForgeRunning,
       installed: { ...marker, instanceName: basename(targetDir), instancePath: targetDir }
     }
   } catch (err) {
