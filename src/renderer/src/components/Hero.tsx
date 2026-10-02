@@ -20,6 +20,7 @@ export function Hero({ modpack }: { modpack: Modpack }) {
         url={latest.coverUrl}
         className="absolute inset-0"
         imgClassName="animate-kenburns"
+        align="right"
       />
       <div className="absolute inset-0 bg-linear-to-r from-ink-950/95 via-ink-950/70 to-ink-950/10" />
       <div className="absolute inset-0 bg-linear-to-t from-ink-900 via-transparent to-transparent" />

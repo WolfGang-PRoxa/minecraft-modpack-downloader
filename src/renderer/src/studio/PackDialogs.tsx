@@ -114,7 +114,10 @@ export function PackInfoDialog({ folder }: { folder: string }) {
               )}
             </div>
           </div>
-          <p className="mt-2 text-xs text-ink-400">PNG, JPG ou WebP au format 16:9 (1920 × 1080 par exemple). Enregistrée comme cover dans le dossier.</p>
+          <p className="mt-2 text-xs text-ink-400">
+            PNG, JPG ou WebP, idéalement au format 16:9 (1920 × 1080 par exemple). Une image d’un autre format, carrée par
+            exemple, est affichée en entier, réduite pour tenir dans le cadre. Enregistrée comme cover dans le dossier.
+          </p>
         </div>
         <Field label="Nom affiché">
           <TextInput value={name} onChange={(e) => setName(e.target.value)} />

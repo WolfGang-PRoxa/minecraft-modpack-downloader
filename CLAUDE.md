@@ -180,7 +180,8 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
 - Tester un raccourci sans toucher au vrai bureau : `app.evaluate(({ app }, d) => app.setPath('desktop', d), dossier)`
   via Playwright.
 - `Cover` : le visuel de remplacement ne doit pas cumuler `relative` et le positionnement passé en `className`
-  (`absolute inset-0`), sinon il ne remplit pas son cadre.
+  (`absolute inset-0`), sinon il ne remplit pas son cadre. Une image loin du 16:9 (rapport hors de 1,6–2) est réduite
+  (`object-contain`) sur un fond flou tiré d'elle-même, calée à droite dans le héros (`align="right"`).
 - Tester l'installeur sans toucher à l'installation réelle : le compiler sous une autre identité
   (`npx electron-builder --win --publish never -c.appId=com.wolfgangproxa.mpdtest -c.productName="MPD Test"
   -c.extraMetadata.name=mpd-test -c.extraMetadata.productName="MPD Test" -c.nsis.shortcutName="MPD Test"
