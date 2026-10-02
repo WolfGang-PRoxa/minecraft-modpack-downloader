@@ -221,6 +221,11 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
   })
   ipcMain.handle('studio:cancelZip', () => zipController?.abort())
 
+  ipcMain.handle('studio:zipContents', (_e, folder: string, fileName: string) => service.zipContents(folder, fileName))
+  ipcMain.handle('studio:zipEntry', (_e, folder: string, fileName: string, path: string) =>
+    service.previewZipEntry(folder, fileName, path)
+  )
+
   ipcMain.handle('studio:openPath', async (_e, path: string) => {
     if (!(await pathExists(path))) throw new StudioError('Ce dossier n’existe plus.')
     await shell.openPath(path)

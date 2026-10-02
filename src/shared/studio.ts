@@ -180,6 +180,37 @@ export interface ZipProgress {
 
 export type ActionResult = { ok: true } | { ok: false; error: string }
 
+/** Fichier d'un zip de modpack, chemin relatif au dossier de l'instance. */
+export interface ZipFileEntry {
+  path: string
+  size: number
+}
+
+/** Mod d'un zip : un .jar du dossier mods, avec son nom CurseForge quand minecraftinstance.json le connaît. */
+export interface ZipMod {
+  fileName: string
+  size: number
+  /** `.jar.disabled` : désactivé dans CurseForge, ignoré par le jeu. */
+  disabled: boolean
+  name: string | null
+  author: string | null
+  /** Page CurseForge du mod. */
+  url: string | null
+}
+
+export interface ZipContents {
+  /** Dossier de l'instance dans le zip ('' : à la racine). */
+  root: string
+  files: ZipFileEntry[]
+  mods: ZipMod[]
+}
+
+export type ZipEntryPreview =
+  | { kind: 'text'; text: string; truncated: boolean }
+  | { kind: 'image'; dataUrl: string }
+  | { kind: 'binary' }
+  | { kind: 'too-large' }
+
 export type ImportResult = { ok: true; zips: number; cover: boolean; ignored: string[] } | { ok: false; error: string }
 
 /** API exposée à la fenêtre du studio par son preload (`window.studio`). */
@@ -216,6 +247,10 @@ export interface StudioApi {
   zipInstance(folder: string, instancePath: string, includeSaves: boolean): Promise<ActionResult & { fileName?: string }>
   cancelZip(): Promise<void>
   onZipProgress(listener: (progress: ZipProgress) => void): () => void
+
+  /** Contenu d'un zip du dossier d'un modpack (version rangée ou zip déposé). */
+  getZipContents(folder: string, fileName: string): Promise<ZipContents>
+  previewZipEntry(folder: string, fileName: string, path: string): Promise<ZipEntryPreview>
 
   openPath(path: string): Promise<void>
   getPathForFile(file: File): string

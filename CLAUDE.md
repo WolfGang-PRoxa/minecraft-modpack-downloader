@@ -73,6 +73,9 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   - `analyze.ts` : validation d'un zip (instance CurseForge, refus des exports `manifest.json`), SHA-256, empreinte
     des mods, cache `.studio-cache.json` (son numéro de `version` change quand `ZipAnalysis` gagne un champ).
   - `sync.ts` : `computePlan` (dossier ↔ releases `pack-*` : create / update / delete) et `applyPlan`.
+  - `contents.ts` : contenu d'un zip pour la fenêtre « Contenu » (`ContentsDialog`) : fichiers depuis le dossier de
+    l'instance, mods nommés d'après `installedAddons` de `minecraftinstance.json`, aperçu d'un fichier (texte coupé à
+    256 Ko, image en `data:`, rien pour un binaire). Le service n'ouvre que des zips du dossier des modpacks.
   - `githubApi.ts` : client d'écriture (dépôt configuré), envois en streaming.
   - `archive.ts` : zip d'une instance (`DEFAULT_EXCLUDES`), `service.ts` : orchestration + verrou d'exclusivité,
     `settings.ts` : dossier des modpacks (repris une fois de l'ancien `%APPDATA%\Modpack Studio\studio-settings.json`).

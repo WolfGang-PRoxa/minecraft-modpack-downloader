@@ -110,6 +110,14 @@ Modpacks/
 3. **Notes** (facultatif) : les nouveautés de la version, en Markdown, affichées aux joueurs.
 4. **Publier sur GitHub** : le studio affiche ce qui va changer, puis l'applique après confirmation.
 
+Le bouton **Contenu** d'une version (ou d'un zip pas encore rangé) montre ce qu'elle contient sans ouvrir
+l'Explorateur :
+
+- **Mods** : chaque mod sous le nom que lui donne CurseForge, avec son auteur, son fichier, sa taille et un lien vers
+  sa page. Les mods ajoutés à la main (inconnus de CurseForge) et ceux désactivés sont signalés.
+- **Fichiers** : l'arborescence de l'instance, dossier par dossier, avec une recherche. Un clic affiche un fichier de
+  configuration ou un script, ou une image (textures, icônes) ; les fichiers binaires ne sont pas affichés.
+
 Le Studio dit aussi quelle version se trouve dans ton CurseForge : « Ton CurseForge contient la **v3** (profil
 « Hardcore Endgame »), en ligne sur GitHub », et la ligne de cette version porte la pastille **Version sur
 CurseForge**. Tu vois ainsi d'un coup d'œil si ce que tu as sous la main est déjà publié. La reconnaissance se fait

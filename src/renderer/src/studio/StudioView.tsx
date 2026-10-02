@@ -19,6 +19,7 @@ import { Button } from '../components/Button'
 import { Logo } from '../components/Logo'
 import { formatBytes, formatRelative } from '../lib/format'
 import { Spinner } from './Modal'
+import { ContentsDialog } from './ContentsDialog'
 import { DeleteDialog } from './DeleteDialog'
 import { PackCard } from './PackCard'
 import { ImportDialog, NewPackDialog, NotesDialog, PackInfoDialog } from './PackDialogs'
@@ -403,6 +404,8 @@ function Dialogs() {
       return <PublishDialog />
     case 'delete':
       return <DeleteDialog target={dialog.target} />
+    case 'contents':
+      return <ContentsDialog key={`${dialog.folder}/${dialog.fileName}`} {...dialog} />
   }
 }
 

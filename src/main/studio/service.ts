@@ -1,4 +1,4 @@
-import { basename, join } from 'node:path'
+import { basename, dirname, join, resolve } from 'node:path'
 import { APP_REPO } from '../../shared/config'
 import { modpackTag, parseModpackTag } from '../../shared/releases'
 import { repoSlug, repoUrl, sameRepo } from '../../shared/repo'
@@ -11,12 +11,16 @@ import type {
   RangerOrders,
   RangerPlan,
   StudioOverview,
-  StudioSettings
+  StudioSettings,
+  ZipContents,
+  ZipEntryPreview
 } from '../../shared/studio'
 import type { RepoRef, Settings } from '../../shared/types'
 import type { Credential } from '../auth'
+import { pathExists } from '../fsutil'
 import { AnalysisCache, describeError, StudioError } from './analyze'
 import { zipInstance } from './archive'
+import { previewZipEntry, readZipContents } from './contents'
 import { GitHubClient } from './githubApi'
 import { applyPlan, computePlan, fetchRemoteState, highestRemoteNumber, type InternalPlan, type RemoteState } from './sync'
 import {
@@ -413,6 +417,29 @@ export class StudioService {
         await this.refreshRemote()
       }
     })
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Contenu des zips
+
+  /** Chemin d'un zip du dossier d'un modpack : jamais en dehors du dossier des modpacks. */
+  private async packZip(folder: string, fileName: string): Promise<string> {
+    const root = resolve(this.requireWorkspace())
+    const dir = resolve(root, folder)
+    const file = resolve(dir, fileName)
+    if (dirname(dir) !== root || dirname(file) !== dir || !/\.zip$/i.test(file)) {
+      throw new StudioError('Ce zip n’est pas dans le dossier des modpacks.')
+    }
+    if (!(await pathExists(file))) throw new StudioError(`${fileName} n’est plus dans le dossier ${folder}.`)
+    return file
+  }
+
+  async zipContents(folder: string, fileName: string): Promise<ZipContents> {
+    return readZipContents(await this.packZip(folder, fileName))
+  }
+
+  async previewZipEntry(folder: string, fileName: string, path: string): Promise<ZipEntryPreview> {
+    return previewZipEntry(await this.packZip(folder, fileName), path)
   }
 
   // ---------------------------------------------------------------------------------------------

@@ -4,6 +4,7 @@ import {
   CircleAlert,
   CloudOff,
   ExternalLink,
+  Eye,
   FileArchive,
   FolderOpen,
   Hourglass,
@@ -180,6 +181,16 @@ function VersionRow({ pack, version, present }: { pack: PackView; version: Versi
           <Button
             size="sm"
             variant="ghost"
+            icon={Eye}
+            onClick={() =>
+              openDialog({ kind: 'contents', folder: pack.folder, fileName: version.fileName, label: `la v${version.number}` })
+            }
+          >
+            Contenu
+          </Button>
+          <Button
+            size="sm"
+            variant="ghost"
             icon={NotebookPen}
             onClick={() => openDialog({ kind: 'notes', folder: pack.folder, version: version.number })}
             className={version.notes ? 'text-grass-300' : ''}
@@ -214,18 +225,29 @@ function VersionRow({ pack, version, present }: { pack: PackView; version: Versi
   )
 }
 
-function PendingRow({ zip, number }: { zip: PendingZip; number: number | null }) {
+function PendingRow({ folder, zip, number }: { folder: string; zip: PendingZip; number: number | null }) {
+  const openDialog = useStudio((s) => s.openDialog)
   return (
     <Row
       badge={<VersionBadge tone="muted">{number ? `v${number}` : '—'}</VersionBadge>}
       aside={
-        zip.error ? (
-          <Pill className={STATUS.blocked.className}>Refusé</Pill>
-        ) : (
-          <Pill className="bg-white/[0.06] text-ink-200 ring-white/10" icon={Hourglass}>
-            À ranger
-          </Pill>
-        )
+        <>
+          {zip.error ? (
+            <Pill className={STATUS.blocked.className}>Refusé</Pill>
+          ) : (
+            <Pill className="bg-white/[0.06] text-ink-200 ring-white/10" icon={Hourglass}>
+              À ranger
+            </Pill>
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            icon={Eye}
+            onClick={() => openDialog({ kind: 'contents', folder, fileName: zip.fileName, label: zip.fileName })}
+          >
+            Contenu
+          </Button>
+        </>
       }
     >
       <p className="truncate font-medium text-ink-200 select-text">{zip.fileName}</p>
@@ -425,7 +447,7 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
 
       <div className="border-t border-white/[0.05] px-2 py-2">
         {pack.pending.map((zip) => (
-          <PendingRow key={zip.fileName} zip={zip} number={zip.error ? null : next++} />
+          <PendingRow key={zip.fileName} folder={pack.folder} zip={zip} number={zip.error ? null : next++} />
         ))}
         {pack.versions.map((version) => (
           <VersionRow

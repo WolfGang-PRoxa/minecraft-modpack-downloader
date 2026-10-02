@@ -11,6 +11,8 @@ export type Dialog =
   | { kind: 'ranger' }
   | { kind: 'publish' }
   | { kind: 'delete'; target: DeleteTarget }
+  /** `label` : « la v3 », ou le nom d'un zip pas encore rangé. */
+  | { kind: 'contents'; folder: string; fileName: string; label: string }
 
 /** Ce que le publieur supprime : une version, tout un modpack, ou des releases dont le zip n'existe plus. */
 export type DeleteTarget =

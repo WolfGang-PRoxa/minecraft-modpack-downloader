@@ -80,6 +80,9 @@ const studio: StudioApi = {
   cancelZip: () => ipcRenderer.invoke('studio:cancelZip'),
   onZipProgress: (listener) => subscribe('studio:zip-progress', listener),
 
+  getZipContents: (folder, fileName) => ipcRenderer.invoke('studio:zipContents', folder, fileName),
+  previewZipEntry: (folder, fileName, path) => ipcRenderer.invoke('studio:zipEntry', folder, fileName, path),
+
   openPath: (path) => ipcRenderer.invoke('studio:openPath', path),
   getPathForFile: (file) => webUtils.getPathForFile(file)
 }
