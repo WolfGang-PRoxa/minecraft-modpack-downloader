@@ -72,7 +72,7 @@ function ProgressBar({
           type="button"
           onClick={onCancel}
           title="Annuler"
-          aria-label="Annuler l'installation"
+          aria-label="Annuler l’installation"
           className="relative mr-1.5 inline-flex size-8 items-center justify-center rounded-lg text-ink-300 transition hover:bg-white/10 hover:text-ink-100"
         >
           <X size={16} strokeWidth={2.5} />
