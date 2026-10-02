@@ -10,6 +10,13 @@ export type Dialog =
   | { kind: 'import'; folder: string }
   | { kind: 'ranger' }
   | { kind: 'publish' }
+  | { kind: 'delete'; target: DeleteTarget }
+
+/** Ce que le publieur supprime : une version, tout un modpack, ou des releases dont le zip n'existe plus. */
+export type DeleteTarget =
+  | { type: 'version'; folder: string; version: number }
+  | { type: 'pack'; folder: string }
+  | { type: 'releases'; name: string; versions: string[]; tags: string[]; orphan: boolean }
 
 interface StudioState {
   overview: StudioOverview | null

@@ -111,6 +111,8 @@ export interface OrphanPack {
   id: string
   name: string
   versions: string[]
+  /** Tags de ses releases, pour les retirer sans attendre la publication. */
+  tags: string[]
 }
 
 export interface StudioOverview {
@@ -202,6 +204,13 @@ export interface StudioApi {
   publish(fingerprint: string): Promise<PublishResult>
   cancelPublish(): Promise<void>
   onPublishProgress(listener: (progress: PublishProgress) => void): () => void
+
+  /** Zip à la corbeille et release retirée de GitHub. */
+  deleteVersion(folder: string, version: number): Promise<PublishResult>
+  /** Dossier à la corbeille et toutes les releases du modpack retirées de GitHub. */
+  deletePack(folder: string): Promise<PublishResult>
+  /** Releases sans zip dans le dossier, retirées sans attendre la publication. */
+  deleteReleases(tags: string[]): Promise<PublishResult>
 
   listInstances(): Promise<{ dir: string; instances: CurseForgeInstanceInfo[] }>
   zipInstance(folder: string, instancePath: string, includeSaves: boolean): Promise<ActionResult & { fileName?: string }>

@@ -3,7 +3,7 @@ import { watch, type FSWatcher } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { ActionResult, RangerOrders } from '../../shared/studio'
+import type { ActionResult, PublishResult, RangerOrders } from '../../shared/studio'
 import { appUpdateTask } from '../appUpdate'
 import { resolveCredential } from '../auth'
 import { resolveInstancesDir } from '../curseforge'
@@ -109,7 +109,8 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
     getCredential: () => resolveCredential(),
     coverUrl,
     onAnalyzing: (fileName) => send('studio:analyzing', fileName),
-    blockedBy: appUpdateTask
+    blockedBy: appUpdateTask,
+    trashItem: (path) => shell.trashItem(path)
   })
   registerCoverProtocol()
   restartWatcher()
@@ -182,6 +183,14 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
     }
   })
   ipcMain.handle('studio:cancelPublish', () => publishController?.abort())
+
+  const unpublished = (run: () => Promise<PublishResult>) =>
+    run().catch((err: unknown): PublishResult => ({ ok: false, cancelled: false, error: describeError(err), done: 0 }))
+  ipcMain.handle('studio:deleteVersion', (_e, folder: string, version: number) =>
+    unpublished(() => service.deleteVersion(folder, version))
+  )
+  ipcMain.handle('studio:deletePack', (_e, folder: string) => unpublished(() => service.deletePack(folder)))
+  ipcMain.handle('studio:deleteReleases', (_e, tags: string[]) => unpublished(() => service.deleteReleases(tags)))
 
   ipcMain.handle('studio:listInstances', async () => {
     const { dir } = await resolveInstancesDir(await getSettings())

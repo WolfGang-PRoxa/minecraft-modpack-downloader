@@ -10,6 +10,7 @@ import {
   NotebookPen,
   PackagePlus,
   Pencil,
+  Trash2,
   TriangleAlert,
   Upload
 } from 'lucide-react'
@@ -17,7 +18,7 @@ import { findPresentVersions, type PresentVersion } from '../../../shared/presen
 import type { PackView, PendingZip, RemoteOnlyVersion, RemoteStatus, VersionView } from '../../../shared/studio'
 import type { CurseForgeProfile } from '../../../shared/types'
 import { describePresence } from '../components/Badges'
-import { Button } from '../components/Button'
+import { Button, IconButton } from '../components/Button'
 import { Cover } from '../components/Cover'
 import { formatBytes, formatDate, formatLoader } from '../lib/format'
 import { useStore } from '../store'
@@ -94,6 +95,9 @@ function versionMeta(version: VersionView): string {
     .filter(Boolean)
     .join(' · ')
 }
+
+/** Bouton discret qui rougit au survol : supprimer est une action rare. */
+const DANGER_HOVER = 'hover:bg-red-500/15! hover:text-red-300!'
 
 /** Où en est sur GitHub la version que contient le CurseForge du publieur. */
 const ONLINE: Record<RemoteStatus, string> = {
@@ -182,6 +186,13 @@ function VersionRow({ pack, version, present }: { pack: PackView; version: Versi
           >
             {version.notes ? 'Notes' : 'Ajouter des notes'}
           </Button>
+          <IconButton
+            icon={Trash2}
+            size={16}
+            label={`Supprimer la v${version.number}`}
+            className={DANGER_HOVER}
+            onClick={() => openDialog({ kind: 'delete', target: { type: 'version', folder: pack.folder, version: version.number } })}
+          />
         </>
       }
     >
@@ -232,7 +243,8 @@ function PendingRow({ zip, number }: { zip: PendingZip; number: number | null })
   )
 }
 
-function RemoteOnlyRow({ version }: { version: RemoteOnlyVersion }) {
+function RemoteOnlyRow({ pack, version }: { pack: PackView; version: RemoteOnlyVersion }) {
+  const openDialog = useStudio((s) => s.openDialog)
   return (
     <Row
       badge={<VersionBadge tone="removed">v{version.version}</VersionBadge>}
@@ -244,6 +256,18 @@ function RemoteOnlyRow({ version }: { version: RemoteOnlyVersion }) {
           <Button size="sm" variant="ghost" icon={ExternalLink} onClick={() => openLink(version.url)}>
             GitHub
           </Button>
+          <IconButton
+            icon={Trash2}
+            size={16}
+            label="Retirer de GitHub maintenant"
+            className={DANGER_HOVER}
+            onClick={() =>
+              openDialog({
+                kind: 'delete',
+                target: { type: 'releases', name: pack.name, versions: [version.version], tags: [version.tag], orphan: false }
+              })
+            }
+          />
         </>
       }
     >
@@ -375,6 +399,15 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
             <Button size="sm" variant="ghost" icon={FolderOpen} onClick={() => openPath(pack.dir)}>
               Ouvrir le dossier
             </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              icon={Trash2}
+              className={`ml-auto ${DANGER_HOVER}`}
+              onClick={() => openDialog({ kind: 'delete', target: { type: 'pack', folder: pack.folder } })}
+            >
+              Supprimer
+            </Button>
           </div>
         </div>
       </div>
@@ -403,7 +436,7 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
           />
         ))}
         {pack.remoteOnly.map((version) => (
-          <RemoteOnlyRow key={version.tag} version={version} />
+          <RemoteOnlyRow key={version.tag} pack={pack} version={version} />
         ))}
         {empty && (
           <div className="flex items-center gap-4 px-4 py-5 text-sm text-ink-400">

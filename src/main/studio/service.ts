@@ -1,4 +1,4 @@
-import { join } from 'node:path'
+import { basename, join } from 'node:path'
 import { APP_REPO } from '../../shared/config'
 import { modpackTag, parseModpackTag } from '../../shared/releases'
 import { repoSlug, repoUrl, sameRepo } from '../../shared/repo'
@@ -46,6 +46,8 @@ export interface StudioServiceOptions {
   onAnalyzing?(fileName: string | null): void
   /** Ce qui interdit de démarrer une opération d'écriture (« la mise à jour de l'application »…), sinon null. */
   blockedBy?(): string | null
+  /** Met un fichier ou un dossier à la corbeille (fenêtre seulement : les scripts ne suppriment rien eux-mêmes). */
+  trashItem?(path: string): Promise<void>
 }
 
 function uncheckedGitHub(repo: RepoRef): GitHubStatus {
@@ -241,8 +243,9 @@ export class StudioService {
     for (const step of plan.steps) {
       if (step.kind !== 'delete' || localIds.has(step.action.packId)) continue
       const id = step.action.packId || step.action.tag
-      const entry = byId.get(id) ?? { id, name: step.action.label.replace(/ v[^ ]+$/, ''), versions: [] }
+      const entry = byId.get(id) ?? { id, name: step.action.label.replace(/ v[^ ]+$/, ''), versions: [], tags: [] }
       entry.versions.push(parseModpackTag(step.action.tag)?.version ?? step.action.tag)
+      entry.tags.push(step.action.tag)
       byId.set(id, entry)
     }
     return [...byId.values()]
@@ -316,6 +319,96 @@ export class StudioService {
 
       try {
         return await applyPlan(auth.client, plan, { onProgress, signal })
+      } finally {
+        await this.refreshRemote()
+      }
+    })
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Suppression
+
+  /**
+   * Supprime une version : son zip part à la corbeille, puis sa release (s'il y en a une) est retirée de GitHub
+   * sans attendre la prochaine publication. Son numéro reste pris.
+   */
+  deleteVersion(folder: string, number: number): Promise<PublishResult> {
+    return this.unpublish(true, async (workspace) => {
+      const pack = workspace.packs.find((p) => p.folder === folder)
+      const version = pack?.versions.find((v) => v.number === number)
+      if (!pack || !version) throw new StudioError(`La v${number} de ${folder} est introuvable : le dossier a changé.`)
+      // Un modpack en erreur n'est jamais touché sur GitHub : sa release resterait en ligne.
+      if (pack.errors.length) throw new StudioError(`Corrige d’abord ce modpack : ${pack.errors[0]}`)
+      await this.trash(version.path)
+      const highest = Math.max(pack.meta.lastVersion, pack.maxNumber, highestRemoteNumber(this.remote!, pack.meta.id))
+      if (!pack.hasPackFile || highest > pack.meta.lastVersion) {
+        await writePackFile(pack.dir, { ...pack.meta, lastVersion: highest }).catch(() => {})
+      }
+      return [modpackTag(pack.meta.id, String(number))]
+    })
+  }
+
+  /** Supprime un modpack : son dossier part à la corbeille, puis toutes ses releases sont retirées de GitHub. */
+  deletePack(folder: string): Promise<PublishResult> {
+    return this.unpublish(true, async (workspace) => {
+      const pack = workspace.packs.find((p) => p.folder === folder)
+      if (!pack) throw new StudioError(`Le modpack ${folder} est introuvable : le dossier a changé.`)
+      // Sans pack.json lisible, on ne sait pas sous quel identifiant le modpack a été publié.
+      if (pack.packFileError) throw new StudioError(pack.packFileError)
+      await this.trash(pack.dir)
+      return this.remote!.releases.map((r) => r.tag_name).filter((tag) => parseModpackTag(tag)?.id === pack.meta.id)
+    })
+  }
+
+  /** Retire tout de suite de GitHub des releases dont le zip n'est plus dans le dossier. */
+  deleteReleases(tags: string[]): Promise<PublishResult> {
+    return this.unpublish(false, async () => tags)
+  }
+
+  private async trash(path: string): Promise<void> {
+    if (!this.options.trashItem) throw new StudioError('Suppression impossible depuis ce programme.')
+    try {
+      await this.options.trashItem(path)
+    } catch (err) {
+      throw new StudioError(`Impossible de mettre ${basename(path)} à la corbeille : ${describeError(err)}`)
+    }
+  }
+
+  /**
+   * Prépare le dossier (`prepare` met à la corbeille ce qui doit disparaître et renvoie les tags concernés), puis
+   * supprime de GitHub les releases de ces tags. Ce sont les suppressions qu'une publication ferait : le dossier
+   * reste la référence. GitHub est vérifié avant de toucher au dossier.
+   */
+  private unpublish(
+    changesFolder: boolean,
+    prepare: (workspace: LocalWorkspace) => Promise<string[]>
+  ): Promise<PublishResult> {
+    return this.exclusive('la suppression', async () => {
+      let tags: string[]
+      try {
+        await this.freshPlan()
+        tags = await prepare((await this.scan())!)
+      } catch (err) {
+        return { ok: false, cancelled: false, error: describeError(err), done: 0 }
+      }
+      const auth = await this.client()
+      if (!auth) return { ok: false, cancelled: false, error: 'Pas de connexion GitHub.', done: 0 }
+      try {
+        const plan = computePlan((await this.scan())!, this.remote!, this.remoteRepo.owner)
+        const steps = plan.steps.filter((s) => s.kind === 'delete' && tags.includes(s.action.tag))
+        // Release demandée dont le zip est (de nouveau) dans le dossier : la publication la garderait, on n'y touche pas.
+        const kept = tags.filter(
+          (tag) => !steps.some((s) => s.action.tag === tag) && this.remote!.releases.some((r) => r.tag_name === tag)
+        )
+        if (kept.length && !changesFolder) {
+          const versions = kept.map((tag) => `v${parseModpackTag(tag)?.version ?? tag}`).join(', ')
+          const error = `${versions} : le zip est toujours dans le dossier, rien n’a été retiré de GitHub.`
+          return { ok: false, cancelled: false, error, done: 0 }
+        }
+        const signal = new AbortController().signal
+        const result = await applyPlan(auth.client, { ...plan, steps }, { onProgress: () => {}, signal })
+        if (result.ok || !changesFolder) return result
+        return { ...result, error: `${result.error} Le dossier est déjà à jour : GitHub le sera à la prochaine publication.` }
       } finally {
         await this.refreshRemote()
       }

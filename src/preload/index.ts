@@ -70,6 +70,10 @@ const studio: StudioApi = {
   cancelPublish: () => ipcRenderer.invoke('studio:cancelPublish'),
   onPublishProgress: (listener) => subscribe('studio:publish-progress', listener),
 
+  deleteVersion: (folder, version) => ipcRenderer.invoke('studio:deleteVersion', folder, version),
+  deletePack: (folder) => ipcRenderer.invoke('studio:deletePack', folder),
+  deleteReleases: (tags) => ipcRenderer.invoke('studio:deleteReleases', tags),
+
   listInstances: () => ipcRenderer.invoke('studio:listInstances'),
   zipInstance: (folder, instancePath, includeSaves) =>
     ipcRenderer.invoke('studio:zipInstance', folder, instancePath, includeSaves),

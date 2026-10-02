@@ -10,6 +10,7 @@ import {
   FolderSearch,
   KeyRound,
   RefreshCw,
+  Trash2,
   TriangleAlert
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
@@ -18,6 +19,7 @@ import { Button } from '../components/Button'
 import { Logo } from '../components/Logo'
 import { formatBytes, formatRelative } from '../lib/format'
 import { Spinner } from './Modal'
+import { DeleteDialog } from './DeleteDialog'
 import { PackCard } from './PackCard'
 import { ImportDialog, NewPackDialog, NotesDialog, PackInfoDialog } from './PackDialogs'
 import { PublishDialog } from './PublishDialog'
@@ -327,7 +329,26 @@ function WorkspaceView({ overview }: { overview: StudioOverview }) {
           </Panel>
         )}
         {orphanPacks.map((orphan) => (
-          <Panel key={orphan.id} icon={CloudOff} tone="bg-red-500/10 text-red-300 ring-red-400/25">
+          <Panel
+            key={orphan.id}
+            icon={CloudOff}
+            tone="bg-red-500/10 text-red-300 ring-red-400/25"
+            action={
+              <Button
+                size="sm"
+                variant="danger"
+                icon={Trash2}
+                onClick={() =>
+                  openDialog({
+                    kind: 'delete',
+                    target: { type: 'releases', name: orphan.name, versions: orphan.versions, tags: orphan.tags, orphan: true }
+                  })
+                }
+              >
+                Retirer maintenant
+              </Button>
+            }
+          >
             <strong className="font-semibold">« {orphan.name} » sera retiré de GitHub.</strong>{' '}
             <span className="text-ink-300">
               Son dossier n’existe plus : {orphan.versions.length > 1 ? 'ses versions' : 'sa version'}{' '}
@@ -380,6 +401,8 @@ function Dialogs() {
       return <RangerDialog />
     case 'publish':
       return <PublishDialog />
+    case 'delete':
+      return <DeleteDialog target={dialog.target} />
   }
 }
 

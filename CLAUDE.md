@@ -131,6 +131,9 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   toujours d'`APP_REPO`. Le studio refuse de publier si le rôle n'est pas `publisher` (hors scripts, qui publient d'office).
   Après une publication, la bibliothèque est rechargée pour montrer tout de suite les nouvelles versions.
 - Le dossier de travail du studio fait foi : une release `pack-*` sans zip local est supprimée (avec son tag).
+  Les suppressions du studio (`deleteVersion`, `deletePack`, `deleteReleases` dans `service.ts`) suivent la même
+  règle : GitHub vérifié d'abord, puis zip ou dossier à la corbeille (`trashItem`, fenêtre seulement), puis seules les
+  étapes `delete` du plan correspondant sont appliquées (`applyPlan`).
   Seule exception : un modpack ou une version en erreur n'est jamais touché sur GitHub.
 - Zip rangé : `<Dossier>-v<N>.zip` (N entier). `pack.json` garde l'`id` (figé), le nom, la description, les notes
   par version et `lastVersion` : un numéro n'est jamais réutilisé.

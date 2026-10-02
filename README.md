@@ -125,6 +125,19 @@ Le dossier fait foi, GitHub en est le miroir :
 | zip supprimé | release **supprimée**, avec son tag |
 | dossier du modpack supprimé | toutes ses releases **supprimées** |
 
+Pour supprimer sans passer par l'Explorateur ni attendre la publication, le studio le fait directement, après
+confirmation :
+
+- **Corbeille** au bout de la ligne d'une version : son zip part à la corbeille de Windows et sa release est retirée
+  de GitHub tout de suite. L'application dit avant quelle version redevient la dernière, ou si le modpack disparaît.
+- **Supprimer** sur la carte d'un modpack : son dossier part à la corbeille (zips, image, notes) et toutes ses
+  releases sont retirées.
+- **Retirer maintenant** sur une version « Sera retirée » (zip effacé à la main) ou un modpack dont le dossier
+  n'existe plus : ses releases sont retirées sans toucher au reste.
+
+Ce sont exactement les suppressions qu'une publication ferait. Restaurer un zip depuis la corbeille le fait republier
+à la publication suivante. Les joueurs qui avaient installé la version supprimée gardent leur profil CurseForge.
+
 - Un numéro n'est **jamais réutilisé** : après suppression de la v3, le zip suivant devient la v4. Sinon, un joueur
   qui a l'ancienne v3 croirait être à jour.
 - Remplacer le contenu d'un zip déjà publié met la release à jour, mais les joueurs qui ont déjà cette version ne sont
