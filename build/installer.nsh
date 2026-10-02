@@ -8,6 +8,14 @@
   ${endIf}
 !macroend
 
+; Lors d'une mise à jour, l'ancien désinstalleur vide le dossier d'installation puis demande à l'Explorateur de
+; redessiner ses icônes : le raccourci du bureau, conservé, pointe à ce moment-là vers un exécutable absent et perd
+; son icône. electron-builder ne refait cette demande qu'en créant lui-même le raccourci du bureau
+; (createDesktopShortcut), ce qu'il ne fait pas ici : on la refait une fois les nouveaux fichiers en place.
+!macro customInstall
+  System::Call 'Shell32::SHChangeNotify(i 0x8000000, i 0, i 0, i 0)'
+!macroend
+
 ; Au lancement de l'installeur, on vérifie si l'application est déjà installée (et intacte) :
 ;  - même version        : on propose de l'ouvrir plutôt que de tout réinstaller ;
 ;  - version plus récente : on prévient avant un retour en arrière ;

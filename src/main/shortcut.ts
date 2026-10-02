@@ -1,4 +1,5 @@
 import { app, dialog, nativeImage, shell, type BrowserWindow } from 'electron'
+import { execFile } from 'node:child_process'
 import { existsSync } from 'node:fs'
 import { mkdir, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
@@ -85,7 +86,21 @@ export async function createShortcut(
     iconIndex: 0,
     appUserModelId: spec.appUserModelId
   })
-  return ok
-    ? { ok: true, path: file }
-    : { ok: false, cancelled: false, error: 'Windows a refusé de créer le raccourci à cet emplacement.' }
+  if (!ok) return { ok: false, cancelled: false, error: 'Windows a refusé de créer le raccourci à cet emplacement.' }
+  refreshShellIcons()
+  return { ok: true, path: file }
+}
+
+/**
+ * Demande à l'Explorateur de relire ses icônes (SHChangeNotify, SHCNE_ASSOCCHANGED), sans attendre la réponse. Il
+ * garde en mémoire l'icône d'un exécutable : sans cela, un raccourci recréé après une mise à jour peut reprendre
+ * une icône vide, mémorisée pendant que l'exécutable était absent.
+ */
+function refreshShellIcons(): void {
+  const script =
+    'Add-Type -Namespace Mpd -Name Shell -MemberDefinition \'[DllImport("shell32.dll")] public static extern void SHChangeNotify(int e, uint f, IntPtr a, IntPtr b);\';' +
+    ' [Mpd.Shell]::SHChangeNotify(0x08000000, 0, [IntPtr]::Zero, [IntPtr]::Zero)'
+  execFile('powershell.exe', ['-NoProfile', '-NonInteractive', '-Command', script], { windowsHide: true, timeout: 30_000 }, () => {
+    // Sans conséquence : l'icône se mettra à jour au prochain rafraîchissement de l'Explorateur.
+  })
 }

@@ -114,7 +114,10 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   « Politique de signature du code » du README est exigée par SignPath : la garder à jour.
 - `build/installer.nsh` — l'installeur ne crée pas de raccourci sur le bureau (l'app le propose au premier lancement,
   réglage `shortcutPrompted`) ; la désinstallation retire celui du bureau, sauf lors d'une mise à jour (`isUpdated` :
-  l'ancien désinstalleur reçoit toujours `--updated` pendant une réinstallation).
+  l'ancien désinstalleur reçoit toujours `--updated` pendant une réinstallation). `customInstall` redemande à
+  l'Explorateur ses icônes (`SHChangeNotify`) : l'ancien désinstalleur l'a fait alors que l'exécutable était absent,
+  et electron-builder ne le refait qu'en créant lui-même le raccourci du bureau. `shortcut.ts` le refait aussi après
+  avoir créé un raccourci.
   `customInit` vérifie au lancement si l'app est déjà installée et intacte (`DisplayVersion` du registre + exécutable
   présent) : même version → boîte Oui (ouvrir) / Non (réinstaller) / Annuler ; version installée plus récente →
   avertissement avant retour en arrière ; plus ancienne → mise à jour sans question. Aucune question avec `/S` ni
