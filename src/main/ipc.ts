@@ -1,11 +1,12 @@
 import { BrowserWindow, dialog, ipcMain, shell, app } from 'electron'
-import type { InstallResult, LaunchInfo, ModpackVersion, Settings, ShortcutLocation } from '../shared/types'
+import type { InstallResult, IssueReport, LaunchInfo, ModpackVersion, Settings, ShortcutLocation } from '../shared/types'
 import { appUpdateTask, cancelAppUpdate, installAppUpdate } from './appUpdate'
 import { registerAuthIpc } from './authIpc'
 import { getCurseForgeStatus, launchCurseForge, resolveInstancesDir } from './curseforge'
 import { getCatalog } from './github'
 import { cancelInstall, installModpack, isInstalling, listInstalled } from './installer'
 import { listProfiles } from './profiles'
+import { openReportInBrowser, reportInfo, submitReport } from './report'
 import { registerRoleIpc } from './roleIpc'
 import { getSettings, updateSettings } from './settings'
 import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
@@ -89,6 +90,10 @@ export function registerIpc(getWindow: () => BrowserWindow | null, launch: { jus
   ipcMain.handle('shell:openExternal', async (_e, url: string) => {
     if (/^https:\/\//i.test(url)) await shell.openExternal(url)
   })
+
+  ipcMain.handle('report:info', () => reportInfo())
+  ipcMain.handle('report:submit', (_e, report: IssueReport) => submitReport(report))
+  ipcMain.handle('report:browser', (_e, report: IssueReport) => openReportInBrowser(report))
 
   ipcMain.handle('app:version', () => app.getVersion())
   ipcMain.handle('app:update', () =>

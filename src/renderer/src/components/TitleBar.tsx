@@ -1,4 +1,4 @@
-import { CircleArrowUp, CloudUpload, Library, Maximize2, Minimize2, Minus, RefreshCw, Settings, X } from 'lucide-react'
+import { Bug, CircleArrowUp, CloudUpload, Library, Maximize2, Minimize2, Minus, RefreshCw, Settings, X } from 'lucide-react'
 import type { AppView } from '../../../shared/types'
 import { useStudio } from '../studio/store'
 import { useStore } from '../store'
@@ -85,6 +85,7 @@ export function TitleBar() {
   const refreshLocal = useStore((s) => s.refreshLocal)
   const fullscreen = useStore((s) => s.fullscreen)
   const openSettings = useStore((s) => s.setSettingsOpen)
+  const openReport = useStore((s) => s.setReportOpen)
   const studio = useStore((s) => s.view === 'studio' && s.settings?.role === 'publisher')
   const studioRefreshing = useStudio((s) => s.pending > 0)
   const refreshStudio = useStudio((s) => s.refresh)
@@ -113,6 +114,7 @@ export function TitleBar() {
           disabled={refreshing}
           className={refreshing ? '[&_svg]:animate-spin' : ''}
         />
+        <IconButton icon={Bug} label="Signaler un problème" onClick={() => openReport(true)} />
         <IconButton icon={Settings} label="Paramètres" onClick={() => openSettings(true)} />
         <div className="mx-2 h-5 w-px bg-white/10" />
         <IconButton icon={Minus} label="Réduire" onClick={() => window.api.minimizeWindow()} />

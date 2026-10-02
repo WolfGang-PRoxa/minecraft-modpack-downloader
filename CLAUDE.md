@@ -60,6 +60,10 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   - `modsSignature.ts` (Node pur) : empreinte des mods d'une instance (nom et taille de chaque `.jar` posé dans
     `mods`), calculée à l'identique pour un zip (`analyze.ts`) et pour un profil CurseForge (`profiles.ts`,
     `listProfiles`, canal `curseforge:profiles`). Relu à chaque fois : ~30 ms pour 29 profils et 2 800 mods.
+  - `report.ts` : signalement d'un problème (canaux `report:*`). Issue créée sur `APP_REPO` avec le compte GitHub
+    connecté (`resolveCredential`) ; sans compte, ou si GitHub refuse, la page « nouvelle issue » s'ouvre préremplie
+    dans le navigateur. Le corps (`src/shared/report.ts`) est du Markdown simple, lisible tel quel dans un mail ; les
+    informations techniques jointes ne contiennent ni chemin ni nom de compte.
   - `zip.ts` (yauzl, protection zip-slip, accepte un zip avec dossier racine), `download.ts`, `ipc.ts`.
 - `src/main/studio/` — la vue Studio. Tout est Node pur (réutilisé par `scripts/modpacks.ts`) sauf `ipc.ts`
   (canaux `studio:*`, images via `studio-media://cover/`, surveillance du dossier des modpacks).
@@ -83,10 +87,25 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   Versions présentes dans CurseForge : `store.present` (bibliothèque, recalculé quand le catalogue, les installations
   ou les profils changent) et `PackCard` (studio, sur les zips du dossier) appellent `findPresentVersions`.
   `PackBadges` affiche « vN dans ton CurseForge », `CurseForgeNote` la phrase du studio.
+  `components/ReportDialog.tsx` : formulaire « Signaler un problème » (bouton de `TitleBar` et de Paramètres → À
+  propos), remonté à chaque ouverture.
 - `src/shared/` — config (`APP_REPO`…), types, dépôts (`repo.ts`), parsing des releases, logo pixel-art.
   `presence.ts` : `findPresentVersions` — un profil installé par l'app est reconnu à son marqueur, les autres à
   l'empreinte de leurs mods (à égalité entre versions d'un même modpack, la plus récente).
+  `report.ts` : types de signalement, validation et corps de l'issue (`reportBody`).
 - `scripts/modpacks.ts` — les commandes `ranger` et `publier` du studio en ligne de commande.
+- `relay/` — service Netlify indépendant de l'application (aucune dépendance, fonctions dans `netlify/functions`,
+  code partagé dans `src/`, syntaxe TypeScript effaçable : il s'exécute aussi tel quel avec `node`). `/github`
+  reçoit le webhook du dépôt : mail au propriétaire à chaque issue, puis, quand une session de correction pousse une
+  branche `…/issue-<N>`, mail de validation (résumé = message du dernier commit). `/action` est la page des boutons
+  des mails (liens signés par `LINK_SECRET`, GET = confirmation, POST = action) : lancer une session
+  (`ROUTINE_FIRE_URL`, le texte de l'issue part avec la demande), poser la proposition sur la branche principale au
+  commit résumé dans le mail, ou renvoyer en correction. `/etat` : page d'état pour le propriétaire (lien signé).
+  La fusion (`src/merge.mts`) est écrite par le relais lui-même, en un commit qui reprend l'identité du commit
+  précédent de la branche principale : **ni pull request ni fusion par GitHub**, dont les commits (y compris le
+  commit d'essai de chaque pull request ouverte) portent l'adresse du compte, donc l'adresse personnelle du
+  propriétaire tant qu'elle n'est pas masquée dans ses réglages GitHub.
+  Voir `relay/README.md` pour les variables et le déploiement.
 - `.github/workflows/release-app.yml` — build de l'installeur et release sur tag `app-vX.Y.Z`. Signature par SignPath
   Foundation (gratuite, open source, licence MIT) si le secret `SIGNPATH_API_TOKEN` existe : envoi de l'installeur
   (artefact), approbation manuelle sur signpath.io, vérification `Get-AuthenticodeSignature`, puis publication.
@@ -161,6 +180,17 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   Un exécutable de l'app lancé depuis un outil hérite d'`ELECTRON_RUN_AS_NODE` (pas de fenêtre) : retirer la variable.
 - L'installeur est compilé avec `-INPUTCHARSET UTF8` : les messages accentués d'`installer.nsh` s'écrivent en UTF-8.
   Les avertissements NSIS font échouer le build (variable ou étiquette inutilisée…).
+- GitHub CLI garde son jeton dans le trousseau de Windows : `GH_CONFIG_DIR` vide ne suffit pas à simuler « aucun
+  compte ». Pour tester sans compte, retirer `GitHub CLI` du `PATH` du processus (et `GITHUB_TOKEN`, `GH_TOKEN`).
+- Netlify, offre gratuite : une variable d'environnement créée avec une portée choisie est refusée sans erreur (la
+  liste reste vide). Marquée « secrète » depuis l'interface, elle fonctionne. Redéployer pour qu'elle soit prise en
+  compte.
+- Tester le relais hors ligne : charger ses fonctions avec `node` (`globalThis.Netlify = { env: { get } }`), et
+  pointer `GITHUB_API_URL`, `RESEND_API_URL` et `ROUTINE_FIRE_URL` vers un faux serveur local qui modélise commits,
+  arbres et branches. Avant un essai réel, `RemoteTrigger run` sur la routine vérifie que sa configuration est
+  acceptée (sans demande, la session ne fait rien).
+- Routine de correction : son `environment_id` doit être un identifiant d'environnement réel (`env_…`), pas
+  `default`, sinon elle refuse de démarrer (`session_config_rejected`).
 - Quota GitHub sans connexion : 60 lectures par heure et par adresse IP, et les réponses 304 (ETag) comptent aussi.
   Ne pas rapprocher les vérifications automatiques (`AUTO_REFRESH_MS`).
 - Les assets de release exposent `digest` (`sha256:…`) même en lecture anonyme, et `state` (`uploaded` une fois

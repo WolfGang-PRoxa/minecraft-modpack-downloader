@@ -3,6 +3,7 @@ import { CurseForgeMissingBanner, OfflineBanner, ShortcutBanner } from './compon
 import { DetailsPanel } from './components/DetailsPanel'
 import { Hero } from './components/Hero'
 import { ModpackCard } from './components/ModpackCard'
+import { ReportDialog } from './components/ReportDialog'
 import { SettingsDialog } from './components/SettingsDialog'
 import { EmptyView, ErrorView, LoadingView } from './components/States'
 import { TitleBar } from './components/TitleBar'
@@ -97,6 +98,7 @@ export function App() {
       </div>
 
       <SettingsDialog />
+      <ReportDialog />
       <Toasts />
     </div>
   )

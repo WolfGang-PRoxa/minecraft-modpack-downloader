@@ -50,6 +50,17 @@ reste ouverte ; **Paramètres → À propos → Rechercher une mise à jour** le
 interrompre, la mise à jour ne démarre pas pendant l'installation d'un modpack ou une publication : termine d'abord
 l'opération en cours.
 
+### Signaler un problème
+
+Le bouton en forme d'insecte, en haut à droite, ouvre un formulaire : un problème ou une suggestion, un titre, une
+description, et le modpack concerné s'il y en a un. Les informations techniques jointes (version de l'application et
+de Windows, état de CurseForge) sont affichées avant l'envoi et ne contiennent ni chemin ni nom de compte.
+
+- Si un compte GitHub est connecté dans l'application, le signalement devient directement une issue de ce dépôt.
+- Sinon, ton navigateur s'ouvre sur GitHub avec le signalement déjà rempli : il reste à cliquer sur « Create ».
+
+Dans les deux cas le signalement est public : n'y mets rien de personnel.
+
 `F11` : passer du plein écran à une fenêtre.
 
 ## Publier un modpack : le Studio
@@ -150,6 +161,12 @@ GitHub Actions construit l'installeur, le fait signer (voir ci-dessous) et crée
 installées proposent alors la nouvelle version en haut de leur fenêtre et se mettent à jour en un clic (voir
 [Mises à jour de l'application](#mises-à-jour-de-lapplication)).
 
+### Suivi des signalements (mainteneur)
+
+Le dossier [`relay/`](relay/README.md) contient un petit service, hébergé sur Netlify, qui prévient le propriétaire
+du dépôt par mail à chaque issue et lui permet, depuis les boutons de ses mails, de faire corriger l'issue puis de
+valider ou d'invalider la correction proposée. Rien n'est fusionné sur la branche principale sans sa validation.
+
 ### Signature du code (mainteneur)
 
 L'installeur est signé gratuitement par [SignPath Foundation](https://signpath.org), réservé aux projets open source.
@@ -188,10 +205,13 @@ Seuls les installeurs construits par GitHub Actions à partir de ce dépôt sont
 
 ### Confidentialité
 
-Modpack Downloader ne collecte aucune donnée et n'envoie rien à ses auteurs. Il ne contacte que GitHub
+Modpack Downloader ne collecte aucune donnée et n'envoie rien à ses auteurs de lui-même. Il ne contacte que GitHub
 (`api.github.com`, `github.com` et ses serveurs de fichiers) : pour lister les modpacks et les mises à jour du dépôt
 suivi, télécharger les fichiers que tu choisis d'installer et afficher les avatars des comptes. En mode publieur, la
 connexion GitHub (jeton) reste chiffrée sur ton PC et n'est envoyée qu'à GitHub, pour publier sur le dépôt choisi.
+Un signalement n'est envoyé que si tu remplis et valides le formulaire « Signaler un problème » : il devient alors
+une issue publique de ce dépôt, avec ce que tu as écrit et, si tu les joins, les informations techniques affichées
+dans le formulaire.
 Aucune autre information n'est transmise à un autre système.
 
 ## Développement

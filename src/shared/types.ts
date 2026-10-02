@@ -221,6 +221,28 @@ export interface LaunchInfo {
   justUpdated: boolean
 }
 
+export type ReportKind = 'bug' | 'suggestion'
+
+/** Signalement saisi dans l'application : il devient une issue sur le dépôt de l'application. */
+export interface IssueReport {
+  kind: ReportKind
+  title: string
+  description: string
+  /** Identifiant du modpack concerné, s'il y en a un. */
+  modpackId: string | null
+  /** Joindre la version de l'application, celle de Windows et l'état de CurseForge. */
+  includeDiagnostics: boolean
+}
+
+export interface ReportInfo {
+  /** Compte GitHub qui signera l'issue ; sans compte, le signalement s'ouvre dans le navigateur. */
+  account: GitHubAccount | null
+  /** Informations techniques proposées en complément. */
+  diagnostics: string[]
+}
+
+export type ReportResult = { ok: true; number: number; url: string } | { ok: false; error: string }
+
 /** Choix du rôle, commun à l'application et au studio. */
 export interface RoleApi {
   /** Passe en récepteur ; un dépôt peut être fourni pour suivre les modpacks d'un autre publieur. */
@@ -249,6 +271,11 @@ export interface RendererApi extends AuthApi, RoleApi {
   createShortcut(location: ShortcutLocation): Promise<ShortcutResult>
   openPath(path: string): Promise<void>
   openExternal(url: string): Promise<void>
+  getReportInfo(): Promise<ReportInfo>
+  /** Crée l'issue avec le compte GitHub connecté. */
+  submitReport(report: IssueReport): Promise<ReportResult>
+  /** Ouvre la page « nouvelle issue » de GitHub, déjà remplie. */
+  openReportInBrowser(report: IssueReport): Promise<void>
   getAppVersion(): Promise<string>
   /** Télécharge puis lance l'installeur de la dernière version : l'application se ferme et se relance toute seule. */
   installAppUpdate(): Promise<AppUpdateResult>

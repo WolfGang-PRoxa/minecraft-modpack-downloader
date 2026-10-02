@@ -35,6 +35,8 @@ interface State {
   busyId: string | null
   selectedId: string | null
   settingsOpen: boolean
+  /** Formulaire « Signaler un problème ». */
+  reportOpen: boolean
   toasts: Toast[]
   appUpdateProgress: AppUpdateProgress | null
   /** Version dont la proposition de mise à jour a été remise à plus tard (jusqu'au prochain lancement). */
@@ -52,6 +54,7 @@ interface State {
   launchCurseForge(): Promise<void>
   select(id: string | null): void
   setSettingsOpen(open: boolean): void
+  setReportOpen(open: boolean): void
   updateSettings(patch: Partial<Settings>): Promise<void>
   pickInstancesDir(): Promise<void>
   createShortcut(location: ShortcutLocation): Promise<void>
@@ -109,6 +112,7 @@ export const useStore = create<State>((set, get) => ({
   busyId: null,
   selectedId: null,
   settingsOpen: false,
+  reportOpen: false,
   toasts: [],
   appUpdateProgress: null,
   updateDismissed: null,
@@ -237,6 +241,11 @@ export const useStore = create<State>((set, get) => ({
 
   setSettingsOpen(settingsOpen) {
     set({ settingsOpen })
+  },
+
+  setReportOpen(reportOpen) {
+    // Ouvert depuis les paramètres : un seul dialogue à la fois.
+    set(reportOpen ? { reportOpen, settingsOpen: false } : { reportOpen })
   },
 
   async updateSettings(patch) {
