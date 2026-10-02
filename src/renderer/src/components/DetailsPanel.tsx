@@ -61,7 +61,7 @@ function VersionRow({
               title={present.map(describePresence).join('\n')}
               className="rounded-md bg-curseforge/15 px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-curseforge uppercase"
             >
-              Dans ton CurseForge
+              Version sur CurseForge
             </span>
           )}
         </div>

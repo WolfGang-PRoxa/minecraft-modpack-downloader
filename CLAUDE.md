@@ -88,7 +88,7 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   contenu (`absolute`), pas sur la fenêtre, pour s'ouvrir sous cette barre.
   Versions présentes dans CurseForge : `store.present` (bibliothèque, recalculé quand le catalogue, les installations
   ou les profils changent) et `PackCard` (studio, sur les zips du dossier) appellent `findPresentVersions`.
-  `PackBadges` affiche « vN dans ton CurseForge », `CurseForgeNote` la phrase du studio.
+  `PackBadges` affiche « Version sur CurseForge : vN », `CurseForgeNote` la phrase du studio.
   `components/ReportDialog.tsx` : formulaire « Signaler un problème » (bouton de `TitleBar` et de Paramètres → À
   propos), remonté à chaque ouverture.
 - `src/shared/` — config (`APP_REPO`…), types, dépôts (`repo.ts`), parsing des releases, logo pixel-art.

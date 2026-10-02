@@ -90,11 +90,12 @@ export function PackBadges({
 
   if (mine.length === 0 && status.kind === 'available') return null
   const hasLatest = mine.some((p) => p.version === modpack.latest.version)
+  const several = new Set(mine.map((p) => p.version)).size > 1
   return (
     <div className={`flex gap-1.5 ${onCover ? 'flex-col items-start' : 'flex-wrap items-center'}`}>
       {mine.length > 0 && (
         <Badge tone={hasLatest ? 'grass' : 'sky'} solid={onCover} title={mine.map(describePresence).join('\n')}>
-          {formatPresentVersions(mine)} dans ton CurseForge
+          {several ? 'Versions' : 'Version'} sur CurseForge : {formatPresentVersions(mine)}
         </Badge>
       )}
       {unlisted && (

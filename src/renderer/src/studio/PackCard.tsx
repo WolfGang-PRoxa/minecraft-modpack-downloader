@@ -167,7 +167,7 @@ function VersionRow({ pack, version, present }: { pack: PackView; version: Versi
               className="bg-curseforge/15 text-curseforge ring-curseforge/30"
               title={present.map(describePresence).join('\n')}
             >
-              Dans ton CurseForge
+              Version sur CurseForge
             </Pill>
           )}
           <Pill className={status.className} title={version.changes.join('\n') || undefined}>

@@ -22,7 +22,7 @@ Le modpack apparaît directement dans CurseForge, prêt à être lancé.
 Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
 tes captures d'écran et tes packs de ressources sont conservés.
 
-L'application indique aussi ce que tu as déjà : **v2 dans ton CurseForge**, même si ce n'est pas la dernière
+L'application indique aussi ce que tu as déjà : **Version sur CurseForge : v2**, même si ce n'est pas la dernière
 version, et marque cette version dans l'historique. Elle le sait pour les profils qu'elle a installés, et reconnaît
 les autres (zip importé à la main, profil d'origine du publieur…) à leurs mods : un profil qui contient exactement
 les mêmes fichiers `.jar` qu'une version publiée est cette version. Elle ne modifie jamais un profil qu'elle n'a
@@ -111,7 +111,7 @@ Modpacks/
 4. **Publier sur GitHub** : le studio affiche ce qui va changer, puis l'applique après confirmation.
 
 Le Studio dit aussi quelle version se trouve dans ton CurseForge : « Ton CurseForge contient la **v3** (profil
-« Hardcore Endgame »), en ligne sur GitHub », et la ligne de cette version porte la pastille **Dans ton
+« Hardcore Endgame »), en ligne sur GitHub », et la ligne de cette version porte la pastille **Version sur
 CurseForge**. Tu vois ainsi d'un coup d'œil si ce que tu as sous la main est déjà publié. La reconnaissance se fait
 sur les mods (nom et taille de chaque `.jar`) : après un changement de configuration seul, le profil est toujours
 reconnu comme la même version — dépose quand même un nouveau zip pour le publier.
