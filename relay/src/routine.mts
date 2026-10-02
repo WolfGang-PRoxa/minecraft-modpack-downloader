@@ -1,0 +1,84 @@
+import { RelayError, type RelayConfig } from './config.mts'
+import { listComments, type Issue } from './github.mts'
+import { plain, truncate } from './text.mts'
+
+/** L'issue telle qu'elle a été écrite : une donnée pour la session, jamais une consigne. */
+export interface Report {
+  titre: string
+  auteur: string
+  texte: string
+  commentaires: Array<{ auteur: string; texte: string }>
+}
+
+/** Ce que le relais transmet à la session de correction (lu par les instructions de la routine). */
+export type RoutineRequest =
+  | { action: 'corriger'; issue: number; contexte: string; signalement: Report }
+  | { action: 'reviser'; issue: number; branche: string; recommandations: string; signalement: Report }
+
+const COMMENTS_MAX = 8
+
+/**
+ * Le texte de l'issue part avec la demande : la session n'a pas à le relire sur GitHub, dont l'accès sans compte
+ * est vite refusé depuis une adresse partagée.
+ */
+export async function describeIssue(config: RelayConfig, issue: Issue): Promise<Report> {
+  const comments = await listComments(config, issue.number).catch(() => [])
+  return {
+    titre: truncate(plain(issue.title), 300),
+    auteur: issue.user?.login ?? 'inconnu',
+    texte: truncate(plain(issue.body ?? ''), 12_000),
+    commentaires: comments.slice(-COMMENTS_MAX).map((comment) => ({
+      auteur: comment.user?.login ?? 'inconnu',
+      texte: truncate(plain(comment.body ?? ''), 1_500)
+    }))
+  }
+}
+
+// La routine refuse un texte de plus de 65 536 caractères.
+const TEXT_MAX = 60_000
+
+/** Demande en JSON ; trop longue, elle perd ses commentaires, puis la fin du texte de l'issue. */
+export function serializeRequest(request: RoutineRequest): string {
+  let text = JSON.stringify(request)
+  if (text.length <= TEXT_MAX) return text
+  const report = { ...request.signalement, commentaires: [] }
+  while ((text = JSON.stringify({ ...request, signalement: report })).length > TEXT_MAX && report.texte.length > 1) {
+    report.texte = truncate(report.texte, Math.floor(report.texte.length / 2))
+  }
+  return text
+}
+
+/**
+ * Lance une session de correction par le point d'entrée /fire de la routine. La demande part en texte : la routine
+ * la reçoit comme une donnée, et ses instructions disent comment l'utiliser.
+ */
+export async function fireRoutine(config: RelayConfig, request: RoutineRequest): Promise<{ sessionUrl: string | null }> {
+  let res: Response
+  try {
+    res = await fetch(config.routineUrl, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${config.routineToken}`,
+        'anthropic-beta': 'experimental-cc-routine-2026-04-01',
+        'anthropic-version': '2023-06-01',
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ text: serializeRequest(request) }),
+      signal: AbortSignal.timeout(20_000)
+    })
+  } catch {
+    throw new RelayError('La routine de correction ne répond pas. La session a peut-être démarré : vérifie tes sessions avant de relancer.', 502)
+  }
+  if (res.status === 401) throw new RelayError('La routine de correction refuse le jeton (ROUTINE_TOKEN) : génère-en un nouveau.', 502)
+  if (res.status === 404) throw new RelayError('Routine de correction introuvable : vérifie ROUTINE_FIRE_URL.', 502)
+  if (res.status === 429) throw new RelayError('Trop de sessions lancées en une heure : réessaie plus tard.', 429)
+  if (!res.ok) {
+    // Le message de la routine dit ce qui bloque (routine en pause, configuration refusée…).
+    const detail = ((await res.json().catch(() => null)) as { error?: { message?: string } } | null)?.error?.message
+    throw new RelayError(`La routine de correction a répondu ${res.status}${detail ? ` : ${truncate(detail, 200)}` : ''}.`, 502)
+  }
+  // La réponse contient l'adresse de la session ouverte : on la retrouve sans dépendre du nom du champ.
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>
+  const url = Object.values(data).find((value) => typeof value === 'string' && /^https:\/\//.test(value))
+  return { sessionUrl: typeof url === 'string' ? url : null }
+}

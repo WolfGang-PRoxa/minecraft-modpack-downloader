@@ -1,0 +1,7 @@
+# Relais du dépôt : webhook GitHub, mails au propriétaire et pages des boutons (voir README.md).
+[build]
+  publish = "public"
+
+[functions]
+  directory = "netlify/functions"
+  node_bundler = "esbuild"
