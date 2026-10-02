@@ -61,7 +61,7 @@ de Windows, état de CurseForge) sont affichées avant l'envoi et ne contiennent
 
 Dans les deux cas le signalement est public : n'y mets rien de personnel.
 
-`F11` : passer du plein écran à une fenêtre.
+La fenêtre s'ouvre en grand, la barre des tâches restant visible. `F11` passe en plein écran, et en fait sortir.
 
 ## Publier un modpack : le Studio
 

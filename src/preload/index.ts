@@ -42,9 +42,9 @@ const api: RendererApi = {
   cancelAppUpdate: () => ipcRenderer.invoke('app:cancelUpdate'),
   onAppUpdateProgress: (listener) => subscribe('app:update-progress', listener),
   minimizeWindow: () => ipcRenderer.send('window:minimize'),
-  toggleFullscreen: () => ipcRenderer.send('window:toggleFullscreen'),
+  toggleMaximize: () => ipcRenderer.send('window:toggleMaximize'),
   closeWindow: () => ipcRenderer.send('window:close'),
-  onFullscreenChange: (listener) => subscribe('window:fullscreen', listener)
+  onWindowStateChange: (listener) => subscribe('window:state', listener)
 }
 
 // Vue Studio (publieurs) : ranger les zips et publier les releases.

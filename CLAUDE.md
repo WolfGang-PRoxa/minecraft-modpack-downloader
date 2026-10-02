@@ -33,6 +33,8 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
 - `src/main/` — processus principal (un seul, une seule fenêtre)
   - `index.ts` : verrou d'instance, protocole `studio-media:` déclaré avant `ready`, IPC de l'app puis du studio.
     Relancée pendant qu'elle tourne (`second-instance`, éventuellement avec `--studio`) → `app:activated`.
+  - `windowState.ts` : fenêtre ouverte agrandie (barre des tâches visible), plein écran par F11 qui ramène à la taille
+    d'avant ; le bouton de la barre de titre agrandit / ramène au niveau inférieur (canaux `window:*`).
   - `github.ts` : lecture des releases du dépôt suivi (cache ETag sur disque, mode hors ligne), `modpack.json` via
     l'URL publique (hors quota API), mises à jour de l'app toujours lues dans `APP_REPO` (tags `app-v*`) :
     `findAppUpdate` ne propose qu'une release dont l'installeur `.exe` est en ligne.

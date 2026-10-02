@@ -11,6 +11,7 @@ import { registerRoleIpc } from './roleIpc'
 import { getSettings, updateSettings } from './settings'
 import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
 import { studioTask } from './studio/ipc'
+import { toggleMaximize } from './windowState'
 
 export function registerIpc(getWindow: () => BrowserWindow | null, launch: { justUpdated: boolean }): void {
   registerAuthIpc()
@@ -105,12 +106,9 @@ export function registerIpc(getWindow: () => BrowserWindow | null, launch: { jus
   ipcMain.handle('app:cancelUpdate', () => cancelAppUpdate())
 
   ipcMain.on('window:minimize', () => getWindow()?.minimize())
-  ipcMain.on('window:toggleFullscreen', () => {
+  ipcMain.on('window:toggleMaximize', () => {
     const win = getWindow()
-    if (!win) return
-    const next = !win.isFullScreen()
-    win.setFullScreen(next)
-    if (!next) win.maximize()
+    if (win) toggleMaximize(win)
   })
   ipcMain.on('window:close', () => getWindow()?.close())
 }

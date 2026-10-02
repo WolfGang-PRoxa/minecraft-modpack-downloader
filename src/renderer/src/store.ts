@@ -13,7 +13,8 @@ import type {
   RoleResult,
   Settings,
   ShortcutLocation,
-  ShortcutStatus
+  ShortcutStatus,
+  WindowState
 } from '../../shared/types'
 import type { ToastItem as Toast } from './components/Toasts'
 
@@ -30,7 +31,7 @@ interface State {
   shortcut: ShortcutStatus | null
   settings: Settings | null
   appVersion: string
-  fullscreen: boolean
+  windowState: WindowState
   progress: InstallProgress | null
   busyId: string | null
   selectedId: string | null
@@ -107,7 +108,7 @@ export const useStore = create<State>((set, get) => ({
   shortcut: null,
   settings: null,
   appVersion: '',
-  fullscreen: true,
+  windowState: 'maximized',
   progress: null,
   busyId: null,
   selectedId: null,
@@ -123,7 +124,7 @@ export const useStore = create<State>((set, get) => ({
     initialized = true
     window.api.onInstallProgress((progress) => set({ progress }))
     window.api.onAppUpdateProgress((appUpdateProgress) => set({ appUpdateProgress }))
-    window.api.onFullscreenChange((fullscreen) => set({ fullscreen }))
+    window.api.onWindowStateChange((windowState) => set({ windowState }))
     window.api.onActivated((view) => {
       void get().refreshLocal()
       if (view) get().setView(view)

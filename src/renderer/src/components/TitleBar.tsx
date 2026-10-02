@@ -1,5 +1,5 @@
-import { Bug, CircleArrowUp, CloudUpload, Library, Maximize2, Minimize2, Minus, RefreshCw, Settings, X } from 'lucide-react'
-import type { AppView } from '../../../shared/types'
+import { Bug, CircleArrowUp, CloudUpload, Copy, Library, Minimize2, Minus, RefreshCw, Settings, Square, X } from 'lucide-react'
+import type { AppView, WindowState } from '../../../shared/types'
 import { useStudio } from '../studio/store'
 import { useStore } from '../store'
 import { IconButton } from './Button'
@@ -49,6 +49,13 @@ function UpdateChip() {
   )
 }
 
+/** Bouton agrandir / niveau inférieur, comme celui de Windows ; en plein écran (F11), il en fait sortir. */
+const MAXIMIZE_BUTTON: Record<WindowState, { icon: typeof Square; label: string; size: number }> = {
+  normal: { icon: Square, label: 'Agrandir', size: 14 },
+  maximized: { icon: Copy, label: 'Niveau inférieur', size: 14 },
+  fullscreen: { icon: Minimize2, label: 'Quitter le plein écran (F11)', size: 16 }
+}
+
 const VIEWS: Array<{ view: AppView; label: string; icon: typeof Library }> = [
   { view: 'library', label: 'Bibliothèque', icon: Library },
   { view: 'studio', label: 'Studio', icon: CloudUpload }
@@ -83,7 +90,7 @@ export function TitleBar() {
   const libraryRefreshing = useStore((s) => s.refreshing)
   const refresh = useStore((s) => s.refresh)
   const refreshLocal = useStore((s) => s.refreshLocal)
-  const fullscreen = useStore((s) => s.fullscreen)
+  const maximizeButton = MAXIMIZE_BUTTON[useStore((s) => s.windowState)]
   const openSettings = useStore((s) => s.setSettingsOpen)
   const openReport = useStore((s) => s.setReportOpen)
   const studio = useStore((s) => s.view === 'studio' && s.settings?.role === 'publisher')
@@ -118,12 +125,7 @@ export function TitleBar() {
         <IconButton icon={Settings} label="Paramètres" onClick={() => openSettings(true)} />
         <div className="mx-2 h-5 w-px bg-white/10" />
         <IconButton icon={Minus} label="Réduire" onClick={() => window.api.minimizeWindow()} />
-        <IconButton
-          icon={fullscreen ? Minimize2 : Maximize2}
-          label={fullscreen ? 'Quitter le plein écran (F11)' : 'Plein écran (F11)'}
-          size={16}
-          onClick={() => window.api.toggleFullscreen()}
-        />
+        <IconButton {...maximizeButton} onClick={() => window.api.toggleMaximize()} />
         <IconButton
           icon={X}
           label="Fermer"

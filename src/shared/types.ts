@@ -113,6 +113,9 @@ export type UserRole = 'receiver' | 'publisher'
 /** Vues de la fenêtre : la bibliothèque (tout le monde) et le studio (publieurs). */
 export type AppView = 'library' | 'studio'
 
+/** Fenêtre normale, agrandie (au lancement) ou en plein écran (F11). */
+export type WindowState = 'normal' | 'maximized' | 'fullscreen'
+
 export interface Settings {
   /** Dossier Instances choisi manuellement (null = détection automatique). */
   instancesDir: string | null
@@ -282,7 +285,8 @@ export interface RendererApi extends AuthApi, RoleApi {
   cancelAppUpdate(): Promise<void>
   onAppUpdateProgress(listener: (progress: AppUpdateProgress) => void): () => void
   minimizeWindow(): void
-  toggleFullscreen(): void
+  /** Agrandit la fenêtre ou la ramène au niveau inférieur ; en plein écran, en sort. */
+  toggleMaximize(): void
   closeWindow(): void
-  onFullscreenChange(listener: (fullscreen: boolean) => void): () => void
+  onWindowStateChange(listener: (state: WindowState) => void): () => void
 }

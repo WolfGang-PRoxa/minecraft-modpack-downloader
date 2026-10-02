@@ -5,6 +5,7 @@ import { setGitHubApiOverride } from './githubEnv'
 import { registerIpc } from './ipc'
 import { useSettingsFile } from './settings'
 import { COVER_SCHEME, registerStudio, stopStudioTasks } from './studio/ipc'
+import { toggleFullScreen, watchWindowState } from './windowState'
 
 let mainWindow: BrowserWindow | null = null
 
@@ -15,7 +16,6 @@ function createWindow(): void {
     height: 900,
     minWidth: 960,
     minHeight: 640,
-    fullscreen: true,
     frame: false,
     show: false,
     backgroundColor: '#0a0d12',
@@ -29,11 +29,12 @@ function createWindow(): void {
     }
   })
 
-  mainWindow.once('ready-to-show', () => mainWindow?.show())
-
-  const notifyFullscreen = () => mainWindow?.webContents.send('window:fullscreen', mainWindow.isFullScreen())
-  mainWindow.on('enter-full-screen', notifyFullscreen)
-  mainWindow.on('leave-full-screen', notifyFullscreen)
+  // Ouverte en grand, la barre des tâches restant visible : le plein écran est au bout de F11.
+  mainWindow.once('ready-to-show', () => {
+    mainWindow?.maximize()
+    mainWindow?.show()
+  })
+  watchWindowState(mainWindow)
 
   // Les liens externes s'ouvrent dans le navigateur, jamais dans l'application.
   mainWindow.webContents.setWindowOpenHandler(({ url }) => {
@@ -48,9 +49,7 @@ function createWindow(): void {
   mainWindow.webContents.on('before-input-event', (event, input) => {
     if (input.type === 'keyDown' && input.key === 'F11') {
       event.preventDefault()
-      const next = !mainWindow!.isFullScreen()
-      mainWindow!.setFullScreen(next)
-      if (!next) mainWindow!.maximize()
+      toggleFullScreen(mainWindow!)
     }
   })
 

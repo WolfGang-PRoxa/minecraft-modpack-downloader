@@ -1,0 +1,39 @@
+import type { BrowserWindow } from 'electron'
+import type { WindowState } from '../shared/types'
+
+/** La fenêtre était agrandie avant le plein écran : elle le redevient en le quittant. */
+let maximizedBeforeFullScreen = true
+
+export function windowState(win: BrowserWindow): WindowState {
+  if (win.isFullScreen()) return 'fullscreen'
+  return win.isMaximized() ? 'maximized' : 'normal'
+}
+
+/** F11 : plein écran (barre des tâches masquée), puis retour à la taille d'avant. */
+export function toggleFullScreen(win: BrowserWindow): void {
+  if (win.isFullScreen()) {
+    win.setFullScreen(false)
+    if (maximizedBeforeFullScreen) win.maximize()
+  } else {
+    maximizedBeforeFullScreen = win.isMaximized()
+    win.setFullScreen(true)
+  }
+}
+
+/** Bouton de la barre de titre : agrandir ou revenir au niveau inférieur, et quitter le plein écran. */
+export function toggleMaximize(win: BrowserWindow): void {
+  if (win.isFullScreen()) toggleFullScreen(win)
+  else if (win.isMaximized()) win.unmaximize()
+  else win.maximize()
+}
+
+/** Prévient la fenêtre à chaque changement, pour l'icône et le libellé du bouton. */
+export function watchWindowState(win: BrowserWindow): void {
+  const notify = () => {
+    if (!win.isDestroyed()) win.webContents.send('window:state', windowState(win))
+  }
+  win.on('maximize', notify)
+  win.on('unmaximize', notify)
+  win.on('enter-full-screen', notify)
+  win.on('leave-full-screen', notify)
+}
