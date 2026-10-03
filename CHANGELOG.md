@@ -3,8 +3,7 @@
 Toutes les évolutions notables de Modpack Downloader, de la plus récente à la plus ancienne. L’application affiche
 le même historique dans **Aide → Nouveautés**.
 
-Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation suit la
-[gestion sémantique de version](https://semver.org/lang/fr/). Pour tenir ce fichier à jour, voir
+Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour tenir ce fichier à jour, voir
 [Suivi des changements](docs/developpement.md#suivi-des-changements).
 
 ## [Non publié]
