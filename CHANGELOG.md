@@ -8,6 +8,8 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 
 ## [Non publié]
 
+## [1.0.5] - 2026-10-03
+
 ### Ajouts
 
 - Studio : **Réglages des versions** de chaque modpack. Choisis les fichiers que tu ne publies jamais (tes options du
@@ -16,7 +18,7 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 - Studio : un zip qui contient des fichiers exclus le signale avant d’être publié, et **Retirer du zip** les enlève.
 - Les mods qu’un publieur propose en option sont installés désactivés : active ceux que tu veux dans CurseForge.
 - Une fenêtre **Mise à jour**, distincte de celle de l’installation, indique ta version et la nouvelle (par exemple
-  `1.0.3 → 1.0.4`).
+  `1.0.4 → 1.0.5`).
 - Lancé pendant que l’application est ouverte, l’installeur prévient qu’il va la fermer (**Fermer et continuer** ou
   **Annuler**), puis la rouvre à la fin.
 
@@ -129,7 +131,8 @@ Première version publique.
 - Mises à jour de l’application proposées en haut de la fenêtre, quelle que soit la vue : téléchargement vérifié,
   installation et redémarrage automatiques.
 
-[Non publié]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.4...HEAD
+[Non publié]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.5...HEAD
+[1.0.5]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.4...app-v1.0.5
 [1.0.4]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.3...app-v1.0.4
 [1.0.3]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.2...app-v1.0.3
 [1.0.2]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.1...app-v1.0.2
