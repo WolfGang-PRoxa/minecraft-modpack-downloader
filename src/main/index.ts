@@ -87,9 +87,9 @@ if (!app.requestSingleInstanceLock()) {
   app.whenReady().then(async () => {
     app.setAppUserModelId('com.wolfgangproxa.modpackdownloader')
     Menu.setApplicationMenu(null)
-    const justUpdated = await noteRunningVersion()
+    const launch = await noteRunningVersion()
     cleanAppUpdateDownloads()
-    registerIpc(() => mainWindow, { justUpdated })
+    registerIpc(() => mainWindow, launch)
     await registerStudio(() => mainWindow)
     createWindow()
   })

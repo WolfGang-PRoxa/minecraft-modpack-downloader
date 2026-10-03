@@ -1,191 +1,90 @@
 # Modpack Downloader
 
-Application Windows pour installer en un clic les modpacks Minecraft publiés sur ce dépôt.
-Le modpack apparaît directement dans CurseForge, prêt à être lancé.
+Application Windows pour installer en un clic les modpacks Minecraft publiés sur GitHub. Le modpack apparaît
+directement dans CurseForge, prêt à être lancé, et se met à jour sans perdre tes mondes. Les auteurs de modpacks les
+publient avec le Studio, dans la même application.
 
-## Pour les joueurs
+**[Télécharger la dernière version](https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases/latest)**
+· [Documentation](docs/README.md) · [Nouveautés](CHANGELOG.md)
+
+## Fonctionnalités
+
+- **Installation en un clic** dans CurseForge (version Overwolf ou application autonome), avec vérification de
+  l'empreinte de chaque téléchargement.
+- **Mises à jour sur place** : mondes, options, captures d'écran, packs de ressources et réglages du profil sont
+  conservés.
+- **Ce que tu as déjà** : l'application reconnaît les versions présentes dans ton CurseForge, même installées à la
+  main, et ne modifie jamais un profil qu'elle n'a pas installé.
+- **Studio** pour les auteurs : un dossier par modpack, numérotation des versions, notes, image, contenu des zips, et
+  publication qui met les releases GitHub en accord avec le dossier. Les mêmes opérations existent en ligne de
+  commande.
+- **Mises à jour de l'application** proposées en haut de la fenêtre, avec leurs nouveautés, et installées en un clic.
+- **Aide intégrée** (`F1`) : toute la documentation et l'historique des versions, avec une recherche.
+- **Signalement d'un problème** depuis l'application, transmis au mainteneur.
+
+## Installation
 
 1. Installe [CurseForge](https://www.curseforge.com/download/app) si ce n'est pas déjà fait.
-2. Télécharge **Modpack-Downloader-Setup-x.y.z.exe** depuis la dernière release
-   [« Modpack Downloader »](https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases/latest) et lance-le.
+2. Télécharge **Modpack-Downloader-Setup-x.y.z.exe** depuis la
+   [dernière version](https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases/latest) et lance-le.
    Les installeurs signés indiquent l'éditeur **SignPath Foundation** (voir
    [Politique de signature du code](#politique-de-signature-du-code)). Si Windows affiche « Windows a protégé votre
    ordinateur », clique sur **Informations complémentaires**, puis **Exécuter quand même** : cet avertissement
    apparaît pour un installeur non signé, et parfois pour une nouvelle version signée, le temps que Microsoft la
    connaisse.
 3. Au premier lancement, choisis **Récepteur** (le choix par défaut) : tu reçois les modpacks publiés sur ce dépôt.
-   L'application propose ensuite d'ajouter un raccourci sur ton bureau (ou à l'endroit de ton choix, bouton
-   **Ailleurs…**). Rôle, dépôt suivi et raccourci se changent à tout moment dans les paramètres : l'interface
-   suit le rôle, dans la même fenêtre.
-4. Dans l'application, clique sur **Installer**. CurseForge s'ouvre et le modpack est dans l'onglet Minecraft.
+4. Dans la bibliothèque, clique sur **Installer** : le modpack est dans CurseForge, onglet Minecraft.
 
-CurseForge ne relit tous ses profils qu'à son démarrage : s'il était déjà ouvert pendant une installation ou une mise
-à jour, il peut ne pas afficher le modpack (ou afficher « 404 » à sa place). L'application le signale et propose
-**Relancer CurseForge** : il se ferme puis se rouvre avec tous ses profils. Le même bouton est dans **Paramètres →
-CurseForge**. Il n'agit pas pendant une partie : ferme d'abord Minecraft.
+L'application s'installe pour ton compte Windows, sans droits d'administrateur. Le détail est dans
+[Installation et premier lancement](docs/installation.md) ; en cas de souci, voir le [Dépannage](docs/depannage.md).
 
-Quand une nouvelle version d'un modpack sort, le bouton devient **Mettre à jour**. Tes mondes, tes options,
-tes captures d'écran et tes packs de ressources sont conservés.
+## Documentation
 
-L'application indique aussi ce que tu as déjà : **Version sur CurseForge : v2**, même si ce n'est pas la dernière
-version, et marque cette version dans l'historique. Elle le sait pour les profils qu'elle a installés, et reconnaît
-les autres (zip importé à la main, profil d'origine du publieur…) à leurs mods : un profil qui contient exactement
-les mêmes fichiers `.jar` qu'une version publiée est cette version. Elle ne modifie jamais un profil qu'elle n'a
-pas installé : **Installer** crée alors un profil à part.
+La documentation est intégrée à l'application (bouton **Aide** de la barre de titre, ou `F1`) et se lit aussi ici :
 
-Si tu relances l'installeur alors que l'application est déjà installée, il le détecte et te propose simplement de
-l'ouvrir (ou de la réinstaller) au lieu de tout réinstaller. Un installeur plus récent met à jour sans question ; un
-installeur plus ancien te prévient avant de revenir en arrière.
+- **Bien démarrer** : [Présentation](docs/presentation.md) · [Installation et premier lancement](docs/installation.md)
+- **Jouer** : [La bibliothèque](docs/bibliotheque.md) · [CurseForge](docs/curseforge.md)
+- **Publier** : [Devenir publieur](docs/publieur.md) · [Le Studio](docs/studio.md) ·
+  [Préparer une version](docs/versions.md) · [Publier et supprimer](docs/publication.md) ·
+  [En ligne de commande](docs/ligne-de-commande.md)
+- **L'application** : [Paramètres](docs/parametres.md) · [Mises à jour](docs/mises-a-jour.md) ·
+  [Signaler un problème](docs/signalement.md) · [Nouveautés](CHANGELOG.md)
+- **Référence** : [Dépannage](docs/depannage.md) · [Fichiers et dossiers](docs/fichiers.md) ·
+  [Confidentialité et sécurité](docs/confidentialite.md) · [Glossaire](docs/glossaire.md)
+- **Développement** : [architecture, commandes, suivi des changements](docs/developpement.md)
 
-L'application s'installe pour ton compte Windows, sans droits d'administrateur, dans
-`%LOCALAPPDATA%\Programs\minecraft-modpack-downloader` (soit `C:\Users\<toi>\AppData\Local\Programs\…`), avec un
-raccourci dans le menu Démarrer. Tes réglages sont dans `%APPDATA%\Modpack Downloader` ; les modpacks, eux, vont
-dans le dossier `Instances` de CurseForge. Pour la désinstaller : **Paramètres Windows → Applications**.
-
-### Mises à jour de l'application
-
-Quand une nouvelle version de l'application sort, une barre l'annonce **en haut de la fenêtre**, quelle que soit la
-vue. **Mettre à jour** télécharge le nouvel installeur et vérifie son empreinte ; l'application se ferme, s'installe
-et se relance toute seule dans la nouvelle version, sans rien te demander. Tes réglages, ta connexion GitHub et tes
-modpacks ne bougent pas. **Plus tard** replie la barre en un rappel dans la barre de titre, jusqu'au prochain
-lancement.
-
-L'application regarde s'il existe une nouvelle version à chaque lancement, puis toutes les 30 minutes tant qu'elle
-reste ouverte ; **Paramètres → À propos → Rechercher une mise à jour** le fait tout de suite. Pour ne rien
-interrompre, la mise à jour ne démarre pas pendant l'installation d'un modpack ou une publication : termine d'abord
-l'opération en cours.
-
-### Signaler un problème
-
-Le bouton en forme d'insecte, en haut à droite, ouvre un formulaire : un problème ou une suggestion, un titre, une
-description, et le modpack concerné s'il y en a un. Les informations techniques jointes (version de l'application et
-de Windows, état de CurseForge) sont affichées avant l'envoi et ne contiennent ni chemin ni nom de compte.
-
-- Si un compte GitHub est connecté dans l'application, le signalement devient directement une issue de ce dépôt.
-- Sinon, ton navigateur s'ouvre sur GitHub avec le signalement déjà rempli : il reste à cliquer sur « Create ».
-
-Dans les deux cas le signalement est public : n'y mets rien de personnel.
-
-La fenêtre s'ouvre en grand, la barre des tâches restant visible. `F11` passe en plein écran, et en fait sortir.
-
-## Publier un modpack : le Studio
-
-Le Studio est la vue du publieur, dans la même fenêtre que la bibliothèque : on y dépose les zips de chaque mise à
-jour, il les numérote et met les releases GitHub en accord avec le dossier, en quelques clics.
-
-Devenir publieur (au premier lancement, ou dans **Paramètres → Utilisation**) :
-
-1. Indique le dépôt GitHub des modpacks (`propriétaire/dépôt`). Il doit être **public**, sinon les joueurs ne voient
-   rien. Par défaut : `WolfGang-PRoxa/minecraft-modpack-downloader`.
-2. Connecte le compte GitHub qui possède ce dépôt : l'application vérifie qu'il a le droit d'y publier, ce qui atteste
-   qu'il s'agit bien de toi. Si une session existe déjà sur le PC ([GitHub CLI](https://cli.github.com/) connecté,
-   ou variable `GITHUB_TOKEN`), elle est utilisée d'office. Sinon : **Se connecter avec GitHub**, ou un jeton
-   *fine-grained* limité au dépôt avec l'accès **Contents : Read and write**
-   ([créer un jeton](https://github.com/settings/personal-access-tokens/new)), chiffré par Windows.
-3. L'application passe sur le **Studio**. Les onglets **Bibliothèque** et **Studio**, en haut, permettent de
-   passer de l'un à l'autre ; l'application rouvre la dernière vue utilisée. Repasser en récepteur ramène à la
-   bibliothèque et retire l'onglet Studio.
-
-Les récepteurs suivent par défaut le dépôt `WolfGang-PRoxa/minecraft-modpack-downloader`. Si tu publies sur un autre
-dépôt, tes joueurs le choisissent dans **Paramètres → Utilisation → Modpacks de**.
-
-Depuis le code source, `npm run studio` lance l'application directement sur le Studio (`npm install` la première
-fois).
-
-Au premier lancement, choisis le dossier des modpacks (par défaut `C:\Users\<toi>\Modpacks`). Il contient un
-sous-dossier par modpack :
-
-```
-Modpacks/
-  Hardcore_Endgame/
-    Hardcore_Endgame-v1.zip        ← zips rangés (numérotés)
-    Hardcore_Endgame-v2.zip
-    ma-derniere-maj.zip            ← zip déposé, pas encore rangé
-    cover.png                      ← image de couverture (facultatif, 16:9)
-    pack.json                      ← géré par le studio : nom, description, notes de version
-  Autre_Modpack/
-```
-
-À chaque mise à jour d'un modpack :
-
-1. **Dépose le zip** dans son dossier (Explorateur, ou glisser-déposer sur le modpack dans le studio). Le bouton
-   **Créer la vN depuis CurseForge** zippe directement une instance, sans tes mondes, logs ni captures.
-2. **Ranger les zips** : chaque nouveau zip reçoit le numéro suivant (`Hardcore_Endgame-v3.zip`), du plus ancien
-   au plus récent. L'ordre se modifie dans l'aperçu.
-3. **Notes** (facultatif) : les nouveautés de la version, en Markdown, affichées aux joueurs.
-4. **Publier sur GitHub** : le studio affiche ce qui va changer, puis l'applique après confirmation.
-
-Le bouton **Contenu** d'une version (ou d'un zip pas encore rangé) montre ce qu'elle contient sans ouvrir
-l'Explorateur :
-
-- **Mods** : chaque mod sous le nom que lui donne CurseForge, avec son auteur, son fichier, sa taille et un lien vers
-  sa page. Les mods ajoutés à la main (inconnus de CurseForge) et ceux désactivés sont signalés.
-- **Fichiers** : l'arborescence de l'instance, dossier par dossier, avec une recherche. Un clic affiche un fichier de
-  configuration ou un script, ou une image (textures, icônes) ; les fichiers binaires ne sont pas affichés.
-
-Le Studio dit aussi quelle version se trouve dans ton CurseForge : « Ton CurseForge contient la **v3** (profil
-« Hardcore Endgame »), en ligne sur GitHub », et la ligne de cette version porte la pastille **Version sur
-CurseForge**. Tu vois ainsi d'un coup d'œil si ce que tu as sous la main est déjà publié. La reconnaissance se fait
-sur les mods (nom et taille de chaque `.jar`) : après un changement de configuration seul, le profil est toujours
-reconnu comme la même version — dépose quand même un nouveau zip pour le publier.
-
-Le dossier fait foi, GitHub en est le miroir :
-
-| Sur le PC | Sur GitHub à la publication |
-|---|---|
-| nouveau zip rangé | nouvelle release `pack-<id>-v<N>` (zip, `modpack.json`, image) |
-| zip, image, nom, description ou notes modifiés | release mise à jour |
-| zip supprimé | release **supprimée**, avec son tag |
-| dossier du modpack supprimé | toutes ses releases **supprimées** |
-
-Pour supprimer sans passer par l'Explorateur ni attendre la publication, le studio le fait directement, après
-confirmation :
-
-- **Corbeille** au bout de la ligne d'une version : son zip part à la corbeille de Windows et sa release est retirée
-  de GitHub tout de suite. L'application dit avant quelle version redevient la dernière, ou si le modpack disparaît.
-- **Supprimer** sur la carte d'un modpack : son dossier part à la corbeille (zips, image, notes) et toutes ses
-  releases sont retirées.
-- **Retirer maintenant** sur une version « Sera retirée » (zip effacé à la main) ou un modpack dont le dossier
-  n'existe plus : ses releases sont retirées sans toucher au reste.
-
-Ce sont exactement les suppressions qu'une publication ferait. Restaurer un zip depuis la corbeille le fait republier
-à la publication suivante. Les joueurs qui avaient installé la version supprimée gardent leur profil CurseForge.
-
-- Un numéro n'est **jamais réutilisé** : après suppression de la v3, le zip suivant devient la v4. Sinon, un joueur
-  qui a l'ancienne v3 croirait être à jour.
-- Remplacer le contenu d'un zip déjà publié met la release à jour, mais les joueurs qui ont déjà cette version ne sont
-  pas prévenus : préfère déposer un nouveau zip.
-- Un zip doit contenir le **dossier de l'instance CurseForge** (`minecraftinstance.json` à la racine ou dans un
-  dossier) et peser au plus 2 Go. Un export CurseForge (`manifest.json` + `overrides`) est refusé, comme un zip
-  illisible ou en cours de copie : il n'est ni rangé ni publié.
-- Un modpack en erreur (`pack.json` invalide, deux zips pour le même numéro…) est laissé tel quel sur GitHub
-  jusqu'à correction. Les releases de l'application (`app-v*`) ne sont jamais touchées.
-
-Les mêmes opérations existent en ligne de commande, sur le dossier choisi dans le studio :
+## Développement
 
 ```bash
-npm run modpacks:ranger                     # numérote les zips déposés
-npm run modpacks:publier                    # met GitHub en accord avec le dossier
-npm run modpacks:publier -- --dry-run       # affiche seulement ce qui changerait
-# options : --dir <dossier>, --yes (sans confirmation)
+npm install
+npm run dev              # lance l'application avec rechargement à chaud
+npm run studio           # même chose, ouverte sur la vue Studio (option --studio)
+npm run typecheck
+npm run docs:verifier    # documentation et historique des versions
+npm run changelog        # changements pas encore mentionnés dans l'historique
+npm run build:win        # installeur local dans dist/
 ```
 
-Les scripts publient sur le dépôt choisi dans l'application (ou `--repo propriétaire/dépôt`), avec la connexion faite
-dans l'application, sinon `GITHUB_TOKEN`, un fichier `.env` (`GITHUB_TOKEN=…`, ignoré par git) ou la session GitHub CLI.
+L'organisation du code, les règles de la documentation, le suivi des changements et les moyens de tester sans
+risque sont décrits dans [docs/developpement.md](docs/developpement.md).
 
-## Publier une nouvelle version de l'application
+### Publier une nouvelle version de l'application
 
-1. Modifier `version` dans `package.json` (ex. `1.1.0`) et committer.
-2. Pousser un tag `app-v1.1.0` :
+1. `npm run changelog` : vérifie que chaque changement visible est mentionné dans la section « Non publié » de
+   [CHANGELOG.md](CHANGELOG.md).
+2. `npm run changelog -- --version 1.1.0` : cette section devient la version 1.1.0, et `package.json` passe en 1.1.0.
+3. Committer, puis pousser un tag `app-v1.1.0` :
 
    ```bash
+   git commit -am "chore: version 1.1.0"
    git tag app-v1.1.0
-   git push origin app-v1.1.0
+   git push origin main app-v1.1.0
    ```
 
-GitHub Actions construit l'installeur, le fait signer (voir ci-dessous) et crée la release. Les applications déjà
-installées proposent alors la nouvelle version en haut de leur fenêtre et se mettent à jour en un clic (voir
-[Mises à jour de l'application](#mises-à-jour-de-lapplication)).
+GitHub Actions vérifie que la version figure dans l'historique, construit l'installeur, le fait signer (voir
+ci-dessous) et crée la release, avec les notes de la version tirées de `CHANGELOG.md`. Les applications déjà
+installées proposent alors la nouvelle version en haut de leur fenêtre, avec ses nouveautés, et se mettent à jour en
+un clic.
 
 ### Suivi des signalements (mainteneur)
 
@@ -238,43 +137,7 @@ connexion GitHub (jeton) reste chiffrée sur ton PC et n'est envoyée qu'à GitH
 Un signalement n'est envoyé que si tu remplis et valides le formulaire « Signaler un problème » : il devient alors
 une issue publique de ce dépôt, avec ce que tu as écrit et, si tu les joins, les informations techniques affichées
 dans le formulaire.
-Aucune autre information n'est transmise à un autre système.
-
-## Développement
-
-```bash
-npm install
-npm run dev          # lance l'application avec rechargement à chaud
-npm run studio       # même chose, ouverte sur la vue Studio (option --studio)
-npm run typecheck
-npm run build:win    # installeur local dans dist/
-```
-
-Le dépôt de l'application (mises à jour, source des modpacks par défaut) est défini dans `src/shared/config.ts`
-(`APP_REPO`), comme l'identifiant de l'application OAuth GitHub (`GITHUB_OAUTH_CLIENT_ID`) utilisée par
-« Se connecter avec GitHub ».
+Aucune autre information n'est transmise à un autre système. Le détail est dans
+[Confidentialité et sécurité](docs/confidentialite.md).
 
 Licence : [MIT](LICENSE).
-
-### Comment ça marche
-
-- Les modpacks sont les releases dont le tag suit `pack-<id>-v<version>`, avec un zip du dossier d'instance
-  CurseForge et un `modpack.json` (nom, version Minecraft, mod loader, empreinte SHA-256…).
-- `modpack.json` contient aussi l'empreinte des mods de la version (`modsSignature` : nom et taille de chaque `.jar`
-  du dossier `mods`). L'application calcule la même empreinte pour chaque profil du dossier `Instances` : c'est ce
-  qui lui permet de dire qu'une version est déjà dans CurseForge sans l'avoir installée elle-même. Une version
-  publiée avant cette fonction n'a pas d'empreinte : le Studio propose de la compléter (seul `modpack.json` est
-  renvoyé, pas le zip).
-- L'application télécharge le zip, vérifie son empreinte, l'extrait dans un dossier temporaire puis le place dans
-  le dossier `Instances` de CurseForge en adaptant les chemins de `minecraftinstance.json`. CurseForge surveille
-  ce dossier et affiche le nouveau profil immédiatement.
-- Le dossier `Instances` est détecté automatiquement (y compris s'il a été déplacé dans CurseForge) et peut être
-  changé dans les paramètres de l'application.
-- Les versions de l'application sont les releases `app-v<version>` de ce dépôt, quel que soit le dépôt de modpacks
-  suivi. Pour se mettre à jour, l'application télécharge l'installeur de la plus récente, compare son empreinte
-  SHA-256 à celle que GitHub publie pour ce fichier, puis le lance avec `--updated` et se ferme : l'installeur
-  remplace les fichiers et relance l'application.
-- Le studio compare chaque zip local (empreinte SHA-256, gardée en cache dans `.studio-cache.json`) au
-  `modpack.json` de la release correspondante, et ne renvoie que ce qui a changé. Une release est créée en brouillon
-  et n'apparaît qu'une fois tous ses fichiers envoyés ; un fichier remplacé est d'abord envoyé sous un autre nom,
-  puis échangé, pour que la release ne soit jamais incomplète.

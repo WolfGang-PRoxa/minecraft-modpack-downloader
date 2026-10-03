@@ -1,0 +1,112 @@
+# Historique des versions
+
+Toutes les évolutions notables de Modpack Downloader, de la plus récente à la plus ancienne. L’application affiche
+le même historique dans **Aide → Nouveautés**.
+
+Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/) et la numérotation suit la
+[gestion sémantique de version](https://semver.org/lang/fr/). Pour tenir ce fichier à jour, voir
+[Suivi des changements](docs/developpement.md#suivi-des-changements).
+
+## [Non publié]
+
+### Ajouts
+
+- **Aide intégrée** : toute la documentation de l’application (installer et jouer, publier avec le Studio,
+  paramètres, dépannage…) s’ouvre avec le bouton **Aide** de la barre de titre ou la touche `F1`, avec une recherche
+  dans toutes les pages.
+- Page **Nouveautés** : l’historique des versions de l’application, consultable à tout moment depuis l’aide ou
+  **Paramètres → À propos**.
+- Après une mise à jour de l’application, la notification propose **Voir les nouveautés**, qui met en avant les
+  changements depuis ta version précédente.
+- La barre de mise à jour présente ce qu’apporte la nouvelle version avant de l’installer (bouton **Nouveautés**).
+
+### Corrections
+
+- Studio : le message qui refuse un export CurseForge cite le bon bouton, « Créer la v… depuis CurseForge ».
+
+## [1.0.3] - 2026-10-02
+
+### Ajouts
+
+- Studio : suppression d’une version (son zip part à la corbeille et sa release est retirée de GitHub tout de suite)
+  ou d’un modpack entier, après une confirmation qui dit ce qui va changer pour les joueurs. Les releases dont le zip
+  a disparu peuvent aussi être retirées sans attendre la publication. <!-- 1f4d1c4 -->
+- Studio : bouton **Contenu** sur chaque version et chaque zip à ranger, pour voir ses mods (nom donné par
+  CurseForge, auteur, lien vers leur page) et parcourir ses fichiers, avec un aperçu des configurations et des
+  images. <!-- 335bee1 -->
+- La fenêtre s’ouvre en grand, la barre des tâches restant visible ; `F11` passe en plein écran et en fait sortir.
+  <!-- 8f35361 -->
+
+### Améliorations
+
+- La pastille « dans ton CurseForge » devient « Version sur CurseForge : v2 » (« Versions » s’il y en a plusieurs).
+  <!-- 3e5ccb0 -->
+
+### Corrections
+
+- Un modpack installé ou mis à jour pendant que CurseForge était ouvert n’y apparaissait pas, ou affichait « 404 » :
+  l’application le signale et propose **Relancer CurseForge**, qui rouvre CurseForge avec tous ses profils. Le même
+  bouton est dans **Paramètres → CurseForge**. <!-- 58d0a17 -->
+- Une image de modpack carrée ou en portrait était rognée : elle est maintenant affichée en entier dans son cadre.
+  <!-- cbda3b3 -->
+- Après une mise à jour de l’application, le raccourci du bureau pouvait perdre son icône. <!-- bbf0122 -->
+
+## [1.0.2] - 2026-10-02
+
+### Ajouts
+
+- **Signaler un problème** : un formulaire, ouvert par le bouton en forme d’insecte de la barre de titre ou depuis
+  **Paramètres → À propos**, pour décrire un problème ou proposer une idée. Avec un compte GitHub connecté, le
+  signalement devient directement une issue du dépôt ; sinon, la page GitHub s’ouvre déjà remplie. <!-- 71316b4 -->
+- Chaque signalement est suivi : le mainteneur est prévenu aussitôt et peut faire préparer une correction, publiée
+  après sa validation. <!-- c678c5f -->
+
+### Corrections
+
+- Le bouton qui annule une installation est annoncé « Annuler l’installation », avec l’apostrophe typographique du
+  reste de l’interface. <!-- 38fe174 -->
+
+## [1.0.1] - 2026-10-02
+
+### Ajouts
+
+- L’application indique les versions de modpack déjà présentes dans ton CurseForge (« v2 dans ton CurseForge »),
+  même si ce n’est pas la dernière et même pour un profil qu’elle n’a pas installé : elle le reconnaît à ses mods.
+  Elle ne modifie jamais un tel profil : **Installer** en crée un à part. <!-- 86621eb -->
+- Studio : chaque modpack indique quelle version se trouve dans ton CurseForge et si elle est en ligne. Les versions
+  déjà publiées sont complétées à la publication suivante pour être reconnues chez les joueurs (seul leur
+  `modpack.json` est renvoyé). <!-- 86621eb -->
+
+## [1.0.0] - 2026-10-02
+
+Première version publique.
+
+### Ajouts
+
+- **Bibliothèque** : les modpacks publiés sur le dépôt suivi, avec leurs notes et l’historique de leurs versions.
+  Installation en un clic, directement comme profil CurseForge, avec vérification de l’empreinte de chaque
+  téléchargement.
+- Mise à jour d’un modpack sur place : mondes, options, captures d’écran, packs de ressources et réglages du profil
+  (mémoire, arguments Java) sont conservés.
+- Détection de CurseForge (Overwolf ou application autonome) et de son dossier `Instances`, modifiable dans les
+  paramètres ; CurseForge s’ouvre après une installation.
+- Fonctionnement hors ligne avec la dernière liste connue, et relecture de GitHub toutes les 30 minutes tant que
+  l’application reste ouverte.
+- Rôles **récepteur** et **publieur**, choisis au premier lancement et modifiables dans les paramètres. Un
+  récepteur peut suivre les modpacks d’un autre dépôt public.
+- **Studio** pour les publieurs : un dossier par modpack, numérotation des zips déposés, notes de version, image de
+  couverture, zip créé directement depuis une instance CurseForge, et publication qui met les releases GitHub en
+  accord avec le dossier. Les mêmes opérations existent en ligne de commande.
+- Connexion GitHub du publieur, chiffrée par Windows et partagée avec la ligne de commande, avec repli sur une
+  session GitHub CLI ou la variable `GITHUB_TOKEN`.
+- Raccourci sur le bureau, ou à l’emplacement de ton choix, proposé au premier lancement.
+- L’installeur reconnaît une application déjà installée : il propose de l’ouvrir plutôt que de la réinstaller, et
+  prévient avant un retour à une version plus ancienne.
+- Mises à jour de l’application proposées en haut de la fenêtre, quelle que soit la vue : téléchargement vérifié,
+  installation et redémarrage automatiques.
+
+[Non publié]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.3...HEAD
+[1.0.3]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.2...app-v1.0.3
+[1.0.2]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.1...app-v1.0.2
+[1.0.1]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.0...app-v1.0.1
+[1.0.0]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases/tag/app-v1.0.0

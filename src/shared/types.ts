@@ -49,9 +49,19 @@ export interface Modpack {
   versions: ModpackVersion[]
 }
 
+/** Version de l'application publiée sur GitHub. */
+export interface AppReleaseNotes {
+  version: string
+  publishedAt: string
+  /** Texte de la release, tiré de CHANGELOG.md par la CI : ses rubriques sont les nouveautés de la version. */
+  notes: string
+  url: string
+}
+
 export interface AppUpdateInfo {
   version: string
-  notes: string
+  /** Les versions plus récentes que celle qui tourne, jusqu'à celle proposée, de la plus récente à la plus ancienne. */
+  releases: AppReleaseNotes[]
   releaseUrl: string
   installerUrl: string
   installerSize: number
@@ -231,6 +241,8 @@ export interface LaunchInfo {
   view: AppView | null
   /** L'application vient d'être mise à jour : annoncé une seule fois. */
   justUpdated: boolean
+  /** Version utilisée avant cette mise à jour : ses nouveautés depuis sont mises en avant (null si inconnue). */
+  previousVersion: string | null
 }
 
 export type ReportKind = 'bug' | 'suggestion'

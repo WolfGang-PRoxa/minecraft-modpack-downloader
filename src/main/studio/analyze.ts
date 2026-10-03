@@ -74,7 +74,7 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
       const isExport = entries.some((e) => /^([^/]+\/)?manifest\.json$/.test(e.fileName))
       throw new StudioError(
         isExport
-          ? 'C’est un export CurseForge (manifest.json) : zippe plutôt le dossier de l’instance, ou utilise « Ajouter depuis CurseForge ».'
+          ? 'C’est un export CurseForge (manifest.json) : zippe plutôt le dossier de l’instance, ou utilise le bouton « Créer la v… depuis CurseForge » du modpack.'
           : 'minecraftinstance.json introuvable : ce zip ne contient pas une instance CurseForge.'
       )
     }

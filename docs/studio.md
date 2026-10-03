@@ -1,0 +1,151 @@
+# Le Studio
+
+Le Studio est la vue du publieur. Tu y ranges les zips de chaque version de tes modpacks ; il les numérote et met
+les releases GitHub en accord avec ton dossier, en quelques clics. Il est réservé au rôle de publieur (voir
+[Devenir publieur](publieur.md)) et s’ouvre avec l’onglet **Studio** de la barre de titre.
+
+## Le principe : le dossier fait foi
+
+Le dossier des modpacks, sur ton PC, est la référence. GitHub en est le miroir : à chaque publication, le Studio
+compare les deux et propose exactement les changements qui mettent GitHub en accord avec le dossier.
+
+| Sur ton PC | Sur GitHub, à la publication |
+|---|---|
+| Nouveau zip rangé (`Mon_Pack-v3.zip`) | Nouvelle release `pack-<id>-v3` (zip, `modpack.json`, image) |
+| Zip, image, nom, description ou notes modifiés | Release mise à jour |
+| Zip supprimé | Release **supprimée**, avec son tag |
+| Dossier du modpack supprimé | Toutes ses releases **supprimées** |
+
+Deux exceptions protègent ce qui est publié :
+
+- un modpack **en erreur** (fichier `pack.json` illisible, deux zips pour le même numéro…) n’est jamais touché sur
+  GitHub tant que l’erreur n’est pas corrigée ;
+- les releases de l’application elle-même (`app-v…`) ne sont jamais touchées.
+
+## Choisir le dossier des modpacks
+
+À la première ouverture, l’écran **Bienvenue dans le Studio** te propose :
+
+- **Utiliser `C:\Users\<toi>\Modpacks`** : le dossier par défaut, créé s’il n’existe pas ;
+- **Choisir un autre dossier…** : n’importe quel dossier, sur n’importe quel disque.
+
+Le dossier se change ensuite dans [Paramètres → Dossier des modpacks](parametres.md#dossier-des-modpacks). S’il
+devient introuvable (disque débranché, dossier déplacé), le Studio affiche **Dossier des modpacks introuvable** et
+te demande où il se trouve.
+
+Ce dossier contient **un sous-dossier par modpack** :
+
+```
+Modpacks/
+  Hardcore_Endgame/
+    Hardcore_Endgame-v1.zip     ← versions rangées (numérotées)
+    Hardcore_Endgame-v2.zip
+    ma-derniere-maj.zip         ← zip déposé, pas encore rangé
+    cover.png                   ← image du modpack (facultative, 16:9)
+    pack.json                   ← géré par le Studio : nom, description, notes
+  Autre_Modpack/
+  .studio-cache.json            ← analyses des zips, gardées en cache
+```
+
+Un zip posé directement à la racine n’appartient à aucun modpack : le Studio le signale (**Zips hors de tout
+modpack**) et l’ignore. Les dossiers dont le nom commence par un point sont ignorés.
+
+## L’écran du Studio
+
+En haut, **Mes modpacks** et le chemin du dossier (un clic l’ouvre dans l’Explorateur), puis les boutons :
+
+- **Guide** ouvre cette page de l’aide ;
+- **Nouveau modpack** crée le dossier d’un nouveau modpack ;
+- **Ranger les zips** numérote les zips déposés (le nombre de zips à ranger est indiqué) ;
+- **Publier sur GitHub** affiche les changements à publier, puis les applique (leur nombre est indiqué).
+
+Dessous, des encarts résument la situation :
+
+| Encart | Signification |
+|---|---|
+| **Tout est en ligne.** | GitHub correspond exactement à ton dossier. **Vérifier** relit GitHub. |
+| **N changements à publier** | Nouvelles versions, mises à jour et suppressions en attente. **Voir et publier** ouvre l’aperçu. |
+| **N zips à ranger** | Des zips déposés attendent leur numéro de version. |
+| **GitHub n’est pas connecté.** | Aucune connexion GitHub : **Connecter GitHub** ouvre les paramètres. |
+| **GitHub injoignable.** | Pas de connexion internet, ou GitHub a refusé la demande. **Réessayer** relit GitHub. |
+| **Le dépôt … est privé** | Tes joueurs ne voient rien : rends le dépôt public sur GitHub. |
+| **Ce compte GitHub ne peut pas publier sur …** | Le compte connecté n’a pas l’accès en écriture au dépôt. |
+| **Zips hors de tout modpack** | Des zips sont à la racine du dossier : déplace-les dans le dossier de leur modpack. |
+| **« … » sera retiré de GitHub.** | Le dossier de ce modpack n’existe plus : ses releases seront supprimées. **Retirer maintenant** le fait tout de suite. |
+
+Le Studio surveille le dossier : un zip copié, renommé ou supprimé dans l’Explorateur apparaît dans la seconde. La
+première fois qu’il voit un zip, il l’analyse (contenu, empreinte) : une pastille **Analyse de …** s’affiche en bas
+à gauche le temps du calcul, gardé ensuite en cache. Le bouton **Actualiser** de la barre de titre relit le dossier et
+GitHub.
+
+## La carte d’un modpack
+
+Chaque modpack a sa carte :
+
+- son **image** (un clic ouvre **Infos et image**), son **nom**, son **identifiant** (en petits caractères) et sa
+  description ;
+- une ligne qui indique **la version que contient ton CurseForge** (voir plus bas) ;
+- les boutons **Infos et image**, **Créer la vN depuis CurseForge**, **Ouvrir le dossier** et **Supprimer** ;
+- en rouge, les **erreurs** qui empêchent sa publication ;
+- puis une ligne par zip : les zips **à ranger** en premier, les **versions** de la plus récente à la plus ancienne,
+  et les versions encore sur GitHub dont le zip a disparu.
+
+Une ligne de version indique le nom du zip, sa taille, la version de Minecraft, le mod loader, le nombre de mods et
+la date du fichier, ainsi que les avertissements de l’analyse (mondes inclus, fichiers inutiles…). À droite : son
+statut, et les boutons **Contenu**, **Notes** (ou **Ajouter des notes**) et la corbeille.
+
+Tu peux **glisser-déposer** des fichiers sur une carte : les zips sont copiés dans le dossier du modpack, une image
+remplace son image de couverture, et les autres fichiers sont ignorés.
+
+## Les statuts
+
+| Statut | Signification |
+|---|---|
+| **En ligne** | Publiée sur GitHub, identique au dossier. |
+| **À publier** | Pas encore sur GitHub : elle sera créée à la prochaine publication. |
+| **Modifiée** | Sur GitHub, mais quelque chose a changé (zip, image, nom, description ou notes). Survole le statut pour voir quoi. |
+| **Non publiable** | Le zip est refusé, ou le modpack est en erreur. |
+| **GitHub non vérifié** | GitHub n’a pas encore pu être lu. |
+| **Sera retirée** | Sa release est sur GitHub mais son zip n’est plus dans le dossier : elle sera supprimée. |
+| **À ranger** | Zip déposé, pas encore numéroté. La ligne indique le numéro qu’il recevra. |
+| **Refusé** | Zip inutilisable (voir [Ce que doit contenir un zip](versions.md#ce-que-doit-contenir-un-zip)). |
+| **Version sur CurseForge** | Cette version est celle de l’un de tes profils CurseForge. |
+
+## Ton CurseForge dans le Studio
+
+Le Studio reconnaît, parmi tes profils CurseForge, ceux qui contiennent une version de tes modpacks : il compare
+leurs mods (nom et taille de chaque `.jar` du dossier `mods`) à ceux de chaque zip. La carte l’indique :
+
+> Ton CurseForge contient la **v3** (profil « Hardcore Endgame »), en ligne sur GitHub.
+
+Tu vois ainsi d’un coup d’œil si ce que tu as sous la main est déjà publié. Si un profil porte le nom du modpack
+mais qu’aucune version du dossier n’a ses mods, le Studio le signale : tu as sans doute modifié le profil depuis la
+dernière version, et **Créer la vN depuis CurseForge** la publiera.
+
+> [!NOTE]
+> Seuls les mods comptent : après un changement de configuration seul, le profil est toujours reconnu comme la même
+> version. Crée quand même une nouvelle version pour publier ce changement.
+
+## Créer un modpack
+
+**Nouveau modpack** demande le nom affiché du modpack (« Hardcore Endgame ») et crée son dossier
+(`Hardcore_Endgame` : espaces remplacées par des soulignés, caractères interdits retirés) avec son fichier
+`pack.json`. Tu peux aussi créer le sous-dossier toi-même dans l’Explorateur : le Studio le reconnaît comme un
+nouveau modpack.
+
+Il reste à y mettre une première version : voir [Préparer une version](versions.md).
+
+## Le fichier pack.json
+
+Chaque dossier de modpack contient un fichier `pack.json`, géré par le Studio :
+
+| Champ | Contenu |
+|---|---|
+| `id` | L’**identifiant** du modpack : lettres minuscules, chiffres et tirets (64 caractères au plus). Il est dérivé du nom à la création, et figure dans les tags GitHub (`pack-<id>-v3`) comme dans les profils des joueurs. **Il ne change jamais** : le modifier après une publication ferait apparaître un nouveau modpack chez les joueurs. |
+| `name` | Le nom affiché aux joueurs. |
+| `description` | La description courte. |
+| `lastVersion` | Le plus grand numéro de version jamais attribué : un numéro n’est jamais réutilisé. |
+| `notes` | Les notes de chaque version, en Markdown, par numéro. |
+
+Tu peux le modifier à la main avec précaution : un fichier illisible, un identifiant invalide ou déjà utilisé par un
+autre dossier bloquent la publication du modpack, avec un message qui dit quoi corriger.

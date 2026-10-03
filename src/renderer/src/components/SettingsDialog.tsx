@@ -1,6 +1,10 @@
 import { useEffect, type ReactNode } from 'react'
-import { Bug, ExternalLink, FolderCog, FolderOpen, Monitor, RefreshCw, RotateCcw, X } from 'lucide-react'
+import { BookOpen, Bug, ExternalLink, FolderCog, FolderOpen, Monitor, RefreshCw, RotateCcw, Sparkles, X } from 'lucide-react'
+import { findRelease } from '../../../shared/changelog'
 import { APP_REPO_URL, CURSEFORGE_DOWNLOAD_URL } from '../../../shared/config'
+import { changelog, CHANGELOG_PAGE, HOME } from '../docs/content'
+import { showDocs } from '../docs/store'
+import { formatDate } from '../lib/format'
 import { useStore } from '../store'
 import { Button, IconButton } from './Button'
 import { CommandLineHint, WorkspaceFolderSetting } from '../studio/StudioSettings'
@@ -54,6 +58,12 @@ export function SettingsDialog() {
   const checking = useStore((s) => s.refreshing)
   const checkAppUpdate = useStore((s) => s.checkAppUpdate)
   const openReport = useStore((s) => s.setReportOpen)
+  const releasedOn = findRelease(changelog, appVersion)?.date ?? null
+  // L'aide s'affiche sous les fenêtres de dialogue : les paramètres se referment pour la laisser voir.
+  const openDocs = (slug: string) => {
+    setOpen(false)
+    showDocs(slug)
+  }
 
   useEffect(() => {
     if (!open) return
@@ -69,6 +79,7 @@ export function SettingsDialog() {
       <div className="animate-fade-in absolute inset-0 bg-ink-950/70 backdrop-blur-sm" onClick={() => setOpen(false)} />
       <div
         role="dialog"
+        aria-modal="true"
         aria-label="Paramètres"
         className="animate-rise relative max-h-[calc(100vh-3rem)] w-full max-w-2xl overflow-y-auto rounded-3xl bg-ink-850 p-8 shadow-2xl ring-1 ring-white/10"
       >
@@ -187,7 +198,10 @@ export function SettingsDialog() {
         )}
 
         <Section title="À propos">
-          <p className="text-sm text-ink-200">Modpack Downloader v{appVersion}</p>
+          <p className="text-sm text-ink-200">
+            Modpack Downloader v{appVersion}
+            {releasedOn && <span className="text-ink-400"> · publiée le {formatDate(`${releasedOn}T12:00:00`)}</span>}
+          </p>
           <p className="mt-1 text-xs leading-relaxed text-ink-400">
             {update
               ? `La version ${update.version} est disponible : elle est proposée en haut de la fenêtre.`
@@ -196,6 +210,12 @@ export function SettingsDialog() {
           <div className="mt-4 flex flex-wrap gap-2">
             <Button size="sm" icon={RefreshCw} disabled={checking} onClick={() => void checkAppUpdate()}>
               Rechercher une mise à jour
+            </Button>
+            <Button size="sm" variant="ghost" icon={Sparkles} onClick={() => openDocs(CHANGELOG_PAGE)}>
+              Nouveautés
+            </Button>
+            <Button size="sm" variant="ghost" icon={BookOpen} onClick={() => openDocs(HOME)}>
+              Documentation
             </Button>
             <Button size="sm" variant="ghost" icon={Bug} onClick={() => openReport(true)}>
               Signaler un problème

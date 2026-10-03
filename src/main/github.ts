@@ -140,21 +140,37 @@ function sha256FromDigest(digest: string | null | undefined): string | null {
 
 /** Version la plus récente de l'application, si elle est plus récente que celle qui tourne. */
 function findAppUpdate(releases: GhRelease[]): AppUpdateInfo | null {
+  const stable = releases.filter(
+    (release) => !release.draft && !release.prerelease && release.tag_name.startsWith(APP_TAG_PREFIX)
+  )
+  const versionOf = (release: GhRelease) => release.tag_name.slice(APP_TAG_PREFIX.length)
   let best: { release: GhRelease; version: string; installer: GhAsset } | null = null
-  for (const release of releases) {
-    if (release.draft || release.prerelease || !release.tag_name.startsWith(APP_TAG_PREFIX)) continue
+  for (const release of stable) {
     // Une release dont l'installeur n'est pas (encore) en ligne n'est pas proposée : il n'y aurait rien à installer.
     const installer = release.assets.find(
       (a) => a.name.toLowerCase().endsWith('.exe') && (a.state ?? 'uploaded') === 'uploaded'
     )
     if (!installer) continue
-    const version = release.tag_name.slice(APP_TAG_PREFIX.length)
+    const version = versionOf(release)
     if (!best || compareVersions(version, best.version) > 0) best = { release, version, installer }
   }
   if (!best || compareVersions(best.version, app.getVersion()) <= 0) return null
+  const offered = best.version
+  // Ce que la mise à jour apporte : les notes de chaque version entre celle qui tourne et celle proposée.
+  const newer = stable
+    .filter((release) => {
+      const version = versionOf(release)
+      return compareVersions(version, app.getVersion()) > 0 && compareVersions(version, offered) <= 0
+    })
+    .sort((a, b) => compareVersions(versionOf(b), versionOf(a)))
   return {
-    version: best.version,
-    notes: best.release.body ?? '',
+    version: offered,
+    releases: newer.map((release) => ({
+      version: versionOf(release),
+      publishedAt: release.published_at ?? release.created_at,
+      notes: release.body ?? '',
+      url: release.html_url
+    })),
     releaseUrl: best.release.html_url,
     installerUrl: best.installer.browser_download_url,
     installerSize: best.installer.size,

@@ -1,5 +1,6 @@
-import { Bug, CircleArrowUp, CloudUpload, Copy, Library, Minimize2, Minus, RefreshCw, Settings, Square, X } from 'lucide-react'
+import { Bug, CircleArrowUp, CircleHelp, CloudUpload, Copy, Library, Minimize2, Minus, RefreshCw, Settings, Square, X } from 'lucide-react'
 import type { AppView, WindowState } from '../../../shared/types'
+import { useDocs } from '../docs/store'
 import { useStudio } from '../studio/store'
 import { useStore } from '../store'
 import { IconButton } from './Button'
@@ -66,6 +67,9 @@ function ViewTabs() {
   const publisher = useStore((s) => s.settings?.role === 'publisher')
   const view = useStore((s) => s.view)
   const setView = useStore((s) => s.setView)
+  // L'aide recouvre la vue : aucun onglet n'est alors actif, et un clic sur l'un d'eux la referme.
+  const docsOpen = useDocs((s) => s.open)
+  const closeDocs = useDocs((s) => s.close)
   if (!publisher) return null
   return (
     <nav className="no-drag ml-4 flex rounded-xl bg-white/[0.04] p-1 ring-1 ring-inset ring-white/[0.06]" aria-label="Vues">
@@ -73,10 +77,13 @@ function ViewTabs() {
         <button
           key={tab.view}
           type="button"
-          aria-current={view === tab.view ? 'page' : undefined}
-          onClick={() => setView(tab.view)}
+          aria-current={!docsOpen && view === tab.view ? 'page' : undefined}
+          onClick={() => {
+            closeDocs()
+            setView(tab.view)
+          }}
           className={`inline-flex items-center gap-2 rounded-lg px-3.5 py-1.5 text-[13px] font-semibold transition ${
-            view === tab.view ? 'bg-white/10 text-ink-100' : 'text-ink-400 hover:text-ink-200'
+            !docsOpen && view === tab.view ? 'bg-white/10 text-ink-100' : 'text-ink-400 hover:text-ink-200'
           }`}
         >
           <tab.icon size={15} /> {tab.label}
@@ -97,6 +104,8 @@ export function TitleBar() {
   const studioRefreshing = useStudio((s) => s.pending > 0)
   const refreshStudio = useStudio((s) => s.refresh)
   const refreshing = studio ? studioRefreshing : libraryRefreshing
+  const docsOpen = useDocs((s) => s.open)
+  const toggleDocs = useDocs((s) => s.toggle)
 
   return (
     <header className="drag-region relative z-30 flex h-14 shrink-0 items-center gap-3 border-b border-white/[0.05] bg-ink-900/70 pr-2 pl-5 backdrop-blur-xl">
@@ -120,6 +129,13 @@ export function TitleBar() {
           onClick={() => void (studio ? refreshStudio({ remote: true }) : Promise.all([refresh(true), refreshLocal()]))}
           disabled={refreshing}
           className={refreshing ? '[&_svg]:animate-spin' : ''}
+        />
+        <IconButton
+          icon={CircleHelp}
+          label={docsOpen ? 'Fermer l’aide (F1)' : 'Aide (F1)'}
+          aria-pressed={docsOpen}
+          onClick={toggleDocs}
+          className={docsOpen ? 'bg-white/10 text-ink-100' : ''}
         />
         <IconButton icon={Bug} label="Signaler un problème" onClick={() => openReport(true)} />
         <IconButton icon={Settings} label="Paramètres" onClick={() => openSettings(true)} />

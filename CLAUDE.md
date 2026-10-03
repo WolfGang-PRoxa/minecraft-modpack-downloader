@@ -14,13 +14,22 @@ fenêtre ni de processus. Interface et messages en français.
   L'auteur des commits est celui de la config git locale.
 - Messages de commit en français, au format conventionnel (`feat: …`, `fix: …`, `docs: …`).
 - Ne pas créer de release ni pousser de tag sans demande explicite (un tag `app-v*` déclenche la CI).
+- Tout commit `feat`, `fix` ou `perf` visible des utilisateurs ajoute son entrée dans la section `## [Non publié]` de
+  `CHANGELOG.md` (rubriques `Ajouts`, `Améliorations`, `Corrections`, `Sécurité`, `Suppressions`), **dans le même
+  commit**, écrite pour les utilisateurs en français. Un changement de comportement met aussi à jour la page de
+  `docs/` qui le décrit (elle est affichée telle quelle dans l'aide de l'app).
 
 ## Commandes
 
 ```bash
 npm run dev              # app en développement (HMR)
 npm run typecheck        # tsc sur main/preload/scripts puis sur le renderer
-npm run build            # typecheck + build electron-vite dans out/
+npm run docs:verifier    # docs/ (sommaire, titres, liens, ancres, pas de HTML) et format de CHANGELOG.md
+npm run build            # typecheck + docs:verifier + build electron-vite dans out/
+npm run changelog        # « Non publié » et commits feat/fix/perf depuis le dernier tag app-v*, mentionnés ou non
+npm run changelog -- --brouillon       # ajoute à « Non publié » une entrée par commit non mentionné
+npm run changelog -- --version 1.2.0   # « Non publié » → 1.2.0 datée du jour, package(-lock).json en 1.2.0 (ni commit ni tag)
+npm run changelog -- --notes 1.2.0     # texte de la release GitHub (--sortie <fichier>), utilisé par la CI
 npm run build:win        # installeur NSIS dans dist/
 npm run studio           # app en développement, ouverte sur la vue Studio (--studio)
 npm run modpacks:ranger  # numérote les zips déposés (--dir, --yes)
@@ -62,7 +71,9 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
     GitHub, le lance détaché avec `--updated` puis quitte ; l'installeur relance l'app avec `--updated`.
     Refusée pendant une installation de modpack ou une opération du studio (`busyWith`) ; à l'inverse, tant qu'elle
     est en cours (`appUpdateTask`), `install:start` et le verrou du studio (`blockedBy`) refusent de démarrer.
-    `noteRunningVersion` (réglage `lastRunVersion`) dit au lancement si l'app vient d'être mise à jour.
+    `noteRunningVersion` (réglage `lastRunVersion`) dit au lancement si l'app vient d'être mise à jour, et depuis
+    quelle version (`LaunchInfo.previousVersion` : la page Nouveautés marque « Nouveau » ce qui a été reçu depuis).
+    `AppUpdateInfo.releases` porte le texte de chaque release `app-v*` plus récente que l'app, jusqu'à celle proposée.
   - `modsSignature.ts` (Node pur) : empreinte des mods d'une instance (nom et taille de chaque `.jar` posé dans
     `mods`), calculée à l'identique pour un zip (`analyze.ts`) et pour un profil CurseForge (`profiles.ts`,
     `listProfiles`, canal `curseforge:profiles`). Relu à chaque fois : ~30 ms pour 29 profils et 2 800 mods.
@@ -98,11 +109,29 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   `PackBadges` affiche « Version sur CurseForge : vN », `CurseForgeNote` la phrase du studio.
   `components/ReportDialog.tsx` : formulaire « Signaler un problème » (bouton de `TitleBar` et de Paramètres → À
   propos), remonté à chaque ouverture.
+  `src/docs/` : l'aide intégrée (bouton Aide de `TitleBar`, `F1`). `content.ts` embarque `docs/*.md` et
+  `CHANGELOG.md` à la compilation (`import.meta.glob` / `?raw`, hors de la racine du renderer) ; le sommaire
+  `docs/README.md` fixe les pages, leurs groupes et leur ordre. `DocsCenter` couvre la zone de contenu (`z-[45]`,
+  sous les fenêtres de dialogue, au-dessus de `DetailsPanel`) : navigation, recherche (`search.ts`, sans accents),
+  « Sur cette page », retour (`Alt + ←`). `DocMarkdown` : ancres comme GitHub (`headingSlug`), liens entre pages,
+  encadrés `> [!NOTE]`, espaces insécables françaises. `ChangelogPage` : historique (« Non publié » seulement en dev),
+  mise à jour disponible en tête (notes des releases), « Ta version », « Nouveau ». Store `useDocs` / `showDocs`.
+  `F1` et `Échap` de l'aide ignorent une fenêtre ouverte par-dessus : toute fenêtre de dialogue porte
+  `aria-modal="true"` (`Modal`, `SettingsDialog`).
 - `src/shared/` — config (`APP_REPO`…), types, dépôts (`repo.ts`), parsing des releases, logo pixel-art.
   `presence.ts` : `findPresentVersions` — un profil installé par l'app est reconnu à son marqueur, les autres à
   l'empreinte de leurs mods (à égalité entre versions d'un même modpack, la plus récente).
   `report.ts` : types de signalement, validation et corps de l'issue (`reportBody`).
+  `docs.ts` : sommaire, titres et ancres calculées comme GitHub, liens (`resolveRepoPath`, chemins depuis la racine).
+  `changelog.ts` : lecture et vérification de `CHANGELOG.md` (Keep a Changelog en français), notes d'une version,
+  lecture des notes d'une release GitHub (`parseReleaseNotes` : tout ce qui précède le premier `---`).
+- `docs/` — la documentation (Markdown lu sur GitHub et dans l'app). Une page = un `# Titre` puis un paragraphe
+  d'introduction ; liens relatifs `page.md#ancre` ; pas de HTML (non affiché : chevrons entre accents graves) ; saut de
+  ligne par `\` en fin de ligne. Toute page doit figurer dans `docs/README.md`.
+- `CHANGELOG.md` — historique des versions de l'app : `## [Non publié]` en tête, puis `## [x.y.z] - AAAA-MM-JJ`,
+  rubriques `###`, liens de comparaison en fin de fichier. Un commentaire `<!-- 1a2b3c4 -->` cite un commit.
 - `scripts/modpacks.ts` — les commandes `ranger` et `publier` du studio en ligne de commande.
+  `scripts/changelog.ts` et `scripts/docs.ts` — suivi de l'historique et vérification de la documentation.
 - `relay/` — service Netlify indépendant de l'application (aucune dépendance, fonctions dans `netlify/functions`,
   code partagé dans `src/`, syntaxe TypeScript effaçable : il s'exécute aussi tel quel avec `node`). `/github`
   reçoit le webhook du dépôt : mail au propriétaire à chaque issue, puis, quand une session de correction pousse une
@@ -115,7 +144,8 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   commit d'essai de chaque pull request ouverte) portent l'adresse du compte, donc l'adresse personnelle du
   propriétaire tant qu'elle n'est pas masquée dans ses réglages GitHub.
   Voir `relay/README.md` pour les variables et le déploiement.
-- `.github/workflows/release-app.yml` — build de l'installeur et release sur tag `app-vX.Y.Z`. Signature par SignPath
+- `.github/workflows/release-app.yml` — build de l'installeur et release sur tag `app-vX.Y.Z`, dont le texte vient de
+  `CHANGELOG.md` (`changelog.ts --notes`, la CI s'arrête si la version n'y figure pas). Signature par SignPath
   Foundation (gratuite, open source, licence MIT) si le secret `SIGNPATH_API_TOKEN` existe : envoi de l'installeur
   (artefact), approbation manuelle sur signpath.io, vérification `Get-AuthenticodeSignature`, puis publication.
   Variables `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG` ; configuration
@@ -150,7 +180,9 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   `cover.(png|jpg|jpeg|webp)` optionnel. Toujours `make_latest: false` (la « latest » reste l'installeur de l'app).
   Un champ ajouté à `MANIFEST_FIELDS` fait renvoyer le `modpack.json` des releases existantes (sans le zip) à la
   publication suivante : c'est ainsi qu'elles reçoivent `modsSignature`.
-- Release de l'app : tag `app-v<version>` = version de `package.json`, avec l'installeur `.exe`.
+- Release de l'app : tag `app-v<version>` = version de `package.json`, avec l'installeur `.exe`. Préparer la version
+  avec `npm run changelog -- --version <version>` ; le texte de la release (notes, `---`, mode d'emploi) est relu par
+  les apps installées pour présenter la mise à jour.
 - Chaque instance installée contient `.modpack-downloader.json` (id, version, `managedEntries`) : c'est la source
   de vérité pour savoir ce qui est installé, et la seule qui autorise une mise à jour sur place. Un profil sans
   marqueur reconnu à ses mods (profil d'origine du publieur, zip importé à la main) est seulement signalé : l'app
@@ -222,6 +254,10 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
 - Tester la relance de CurseForge hors Windows : `process.platform` forcé à `win32` avant d'importer `curseforge.ts`
   (avec tsx), et de faux `powershell.exe`, `taskkill` et `reg` en tête du `PATH` ; `LOCALAPPDATA` pointe vers un
   dossier où `Programs\CurseForge Windows\CurseForge.exe` est un script.
+- react-markdown (micromark) encode les caractères non ASCII des liens : `#d%C3%A9j%C3%A0`. `splitHref` décode chemin
+  et ancre. En test Playwright, `innerText` applique `text-transform` (pastilles et titres en majuscules).
+- Tester l'aide ou les nouveautés : faux serveur avec des releases `app-v*` plus récentes que `package.json`, dont le
+  texte suit le format de la CI, et `lastRunVersion` plus ancien dans `settings.json` pour simuler une mise à jour.
 - Tester la mise à jour de l'app de bout en bout : deux installeurs sous l'identité de test (une version ancienne,
   une récente), la récente servie par le faux serveur comme asset `.exe` d'une release `app-v<version>`. L'app
   packagée ignorant `MPD_GITHUB_API`, compiler l'ancienne avec `setGitHubApiOverride(process.env.MPD_GITHUB_API)`

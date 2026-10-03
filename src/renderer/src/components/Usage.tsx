@@ -4,6 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import { APP_REPO } from '../../../shared/config'
 import { parseRepo, repoSlug, sameRepo } from '../../../shared/repo'
 import type { AuthApi, AuthStatus, RepoRef, RoleApi, RoleResult, Settings, UserRole } from '../../../shared/types'
+import { showDocs } from '../docs/store'
 import { useStore } from '../store'
 import { Button } from './Button'
 import { Avatar, GitHubAccount } from './GitHubAccount'
@@ -251,7 +252,14 @@ export function SetupView() {
         </div>
         <h1 className="mt-6 font-display text-4xl font-bold tracking-tight">Bienvenue dans Modpack Downloader</h1>
         <p className="mt-3 text-ink-300">
-          Comment vas-tu utiliser l’application ? Tu pourras changer d’avis à tout moment dans les paramètres.
+          Comment vas-tu utiliser l’application ? Tu pourras changer d’avis à tout moment dans les paramètres.{' '}
+          <button
+            type="button"
+            onClick={() => showDocs('presentation', 'deux-rôles')}
+            className="font-semibold text-grass-300 transition hover:text-grass-400"
+          >
+            En savoir plus
+          </button>
         </p>
       </header>
 

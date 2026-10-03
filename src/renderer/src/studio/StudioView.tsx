@@ -1,6 +1,7 @@
 import { useEffect, type ReactNode } from 'react'
 import {
   ArrowDownWideNarrow,
+  BookOpen,
   CircleCheck,
   CircleX,
   CloudOff,
@@ -17,6 +18,7 @@ import type { LucideIcon } from 'lucide-react'
 import type { StudioOverview } from '../../../shared/studio'
 import { Button } from '../components/Button'
 import { Logo } from '../components/Logo'
+import { showDocs } from '../docs/store'
 import { formatBytes, formatRelative } from '../lib/format'
 import { Spinner } from './Modal'
 import { ContentsDialog } from './ContentsDialog'
@@ -109,6 +111,15 @@ function Welcome({ overview }: { overview: StudioOverview }) {
           {missing ? 'Choisir le dossier…' : 'Choisir un autre dossier…'}
         </Button>
       </div>
+      {!missing && (
+        <button
+          type="button"
+          onClick={() => showDocs('studio')}
+          className="mt-6 inline-flex items-center gap-2 text-sm font-semibold text-grass-300 transition hover:text-grass-400"
+        >
+          <BookOpen size={16} /> Lire le guide du Studio
+        </button>
+      )}
     </Centered>
   )
 }
@@ -272,6 +283,9 @@ function WorkspaceView({ overview }: { overview: StudioOverview }) {
           </button>
         </div>
         <div className="flex flex-wrap gap-3">
+          <Button variant="ghost" icon={BookOpen} onClick={() => showDocs('studio')}>
+            Guide
+          </Button>
           <Button icon={FolderPlus} onClick={() => openDialog({ kind: 'new-pack' })}>
             Nouveau modpack
           </Button>

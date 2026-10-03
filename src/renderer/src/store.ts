@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { findRelease, releaseHasChanges } from '../../shared/changelog'
 import { findPresentVersions, type PresentVersion } from '../../shared/presence'
 import { sameRepo } from '../../shared/repo'
 import type {
@@ -17,6 +18,8 @@ import type {
   WindowState
 } from '../../shared/types'
 import type { ToastItem as Toast } from './components/Toasts'
+import { changelog, CHANGELOG_PAGE } from './docs/content'
+import { showDocs, useDocs } from './docs/store'
 
 interface State {
   catalog: Catalog | null
@@ -141,10 +144,16 @@ export const useStore = create<State>((set, get) => ({
     const view = settings.role === 'publisher' ? (launch.view ?? settings.lastView) : 'library'
     set({ settings, appVersion, view })
     if (launch.justUpdated) {
+      // Les nouveautés reçues depuis la version précédente sont mises en avant dans l'aide.
+      useDocs.getState().setUpdatedFrom(launch.previousVersion)
+      const notes = findRelease(changelog, appVersion)
       get().pushToast({
         kind: 'success',
         title: 'Application mise à jour',
-        message: `Tu utilises maintenant la version ${appVersion}.`
+        message: `Tu utilises maintenant la version ${appVersion}.`,
+        ...(notes && releaseHasChanges(notes)
+          ? { action: { label: 'Voir les nouveautés', run: () => showDocs(CHANGELOG_PAGE) }, sticky: true }
+          : {})
       })
     }
     await Promise.all([get().refresh(), get().refreshLocal()])

@@ -29,6 +29,7 @@ export function Modal({ title, subtitle, onClose, children, footer, width = 'max
       />
       <div
         role="dialog"
+        aria-modal="true"
         aria-label={title}
         className={`animate-rise relative flex max-h-[calc(100vh-3rem)] w-full ${width} flex-col rounded-3xl bg-ink-850 shadow-2xl ring-1 ring-white/10`}
       >

@@ -233,3 +233,200 @@
     text-align: left;
   }
 }
+
+/* Pages de l'aide (docs/*.md et CHANGELOG.md) : la mise en forme de GitHub, aux couleurs de l'application. */
+.prose-docs {
+  color: var(--color-ink-200);
+  font-size: 0.95rem;
+  line-height: 1.75;
+  user-select: text;
+
+  & > :first-child {
+    margin-top: 0;
+  }
+  & h1 {
+    font-family: var(--font-display);
+    font-size: 2.25rem;
+    line-height: 1.15;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--color-ink-100);
+    margin: 0 0 0.55em;
+  }
+  & h1 + p {
+    font-size: 1.05rem;
+    color: var(--color-ink-300);
+  }
+  & h2,
+  & h3,
+  & h4 {
+    font-family: var(--font-display);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-ink-100);
+  }
+  & h2 {
+    font-size: 1.5rem;
+    margin: 2.2em 0 0.6em;
+    padding-top: 1.3em;
+    border-top: 1px solid rgb(255 255 255 / 0.06);
+  }
+  & h3 {
+    font-size: 1.15rem;
+    margin: 1.9em 0 0.5em;
+  }
+  & h4 {
+    font-size: 1rem;
+    margin: 1.5em 0 0.4em;
+  }
+  & p {
+    margin: 0.9em 0;
+  }
+  & ul,
+  & ol {
+    margin: 0.9em 0;
+  }
+  & ul {
+    list-style: none;
+    padding-left: 0.2em;
+  }
+  & ul > li {
+    position: relative;
+    padding-left: 1.2em;
+  }
+  & ul > li::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.72em;
+    width: 6px;
+    height: 6px;
+    background: var(--color-grass-400);
+  }
+  & ol {
+    list-style: decimal;
+    padding-left: 1.5em;
+  }
+  & ol > li::marker {
+    color: var(--color-grass-300);
+    font-weight: 600;
+  }
+  & li {
+    margin: 0.35em 0;
+  }
+  & li > p {
+    margin: 0.35em 0;
+  }
+  & a {
+    color: var(--color-grass-300);
+    text-decoration: underline;
+    text-decoration-color: rgb(166 240 138 / 0.35);
+    text-underline-offset: 3px;
+    cursor: pointer;
+  }
+  & a:hover {
+    text-decoration-color: currentColor;
+  }
+  & strong {
+    color: var(--color-ink-100);
+    font-weight: 600;
+  }
+  & code {
+    font-size: 0.85em;
+    color: var(--color-ink-100);
+    background: var(--color-ink-750);
+    padding: 0.15em 0.4em;
+    border-radius: 6px;
+  }
+  & pre {
+    margin: 1.2em 0;
+    padding: 1em 1.2em;
+    overflow-x: auto;
+    font-size: 0.82rem;
+    line-height: 1.6;
+    background: var(--color-ink-950);
+    border: 1px solid rgb(255 255 255 / 0.06);
+    border-radius: 14px;
+  }
+  & pre code {
+    font-size: inherit;
+    color: var(--color-ink-200);
+    background: none;
+    padding: 0;
+  }
+  & hr {
+    border: 0;
+    border-top: 1px solid rgb(255 255 255 / 0.08);
+    margin: 2em 0;
+  }
+  & blockquote {
+    margin: 1.2em 0;
+    padding: 0.1em 0 0.1em 1.1em;
+    color: var(--color-ink-300);
+    border-left: 3px solid var(--color-ink-600);
+  }
+  & .table-wrap {
+    margin: 1.2em 0;
+    overflow-x: auto;
+    border: 1px solid rgb(255 255 255 / 0.07);
+    border-radius: 14px;
+  }
+  & table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.875rem;
+    line-height: 1.6;
+  }
+  & th {
+    font-weight: 600;
+    color: var(--color-ink-100);
+    background: rgb(255 255 255 / 0.04);
+  }
+  & th,
+  & td {
+    padding: 0.6em 0.9em;
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid rgb(255 255 255 / 0.06);
+  }
+  & tr:last-child td {
+    border-bottom: 0;
+  }
+  & th + th,
+  & td + td {
+    border-left: 1px solid rgb(255 255 255 / 0.06);
+  }
+  & .callout > :first-child,
+  & .callout > :nth-child(2) {
+    margin-top: 0;
+  }
+  & .callout > :last-child {
+    margin-bottom: 0;
+  }
+  & h2,
+  & h3,
+  & h4 {
+    border-radius: 8px;
+  }
+}
+
+/* Entrées de la page Nouveautés : des listes serrées sous chaque rubrique. */
+.prose-docs.changelog-items {
+  & ul {
+    margin: 0.4em 0 0;
+  }
+}
+
+/* Section atteinte par un lien de l'aide : brièvement mise en évidence. */
+[data-flash] {
+  animation: docs-flash 1.6s ease-out;
+}
+
+@keyframes docs-flash {
+  from {
+    background-color: rgb(126 217 87 / 0.14);
+  }
+  to {
+    background-color: transparent;
+  }
+}

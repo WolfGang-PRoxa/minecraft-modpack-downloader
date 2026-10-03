@@ -41,6 +41,13 @@ jobs:
 
       - run: npm ci
 
+      # Le texte de la release vient de CHANGELOG.md : sans entrée pour cette version, on s'arrête avant de construire.
+      # L'application installée relit ce texte pour présenter la mise à jour.
+      - name: Notes de version (CHANGELOG.md)
+        shell: bash
+        run: npx tsx scripts/changelog.ts --notes "${{ steps.version.outputs.version }}" --sortie release-notes.md
+
+      # Vérifie aussi la documentation intégrée (npm run build lance docs:verifier).
       - run: npm run build:win
 
       - name: Préparer l'installeur à signer
@@ -83,7 +90,4 @@ jobs:
           name: Modpack Downloader ${{ steps.version.outputs.version }}
           files: dist/${{ steps.version.outputs.installer }}
           make_latest: true
-          body: |
-            Télécharge **${{ steps.version.outputs.installer }}** ci-dessous et lance-le.
-
-            Windows peut afficher « Windows a protégé votre ordinateur » : clique sur **Informations complémentaires**, puis **Exécuter quand même**.
+          body_path: release-notes.md

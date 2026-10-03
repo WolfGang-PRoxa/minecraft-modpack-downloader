@@ -13,7 +13,10 @@ import { createShortcut, PLAYER_SHORTCUT, shortcutStatus } from './shortcut'
 import { studioTask } from './studio/ipc'
 import { toggleMaximize } from './windowState'
 
-export function registerIpc(getWindow: () => BrowserWindow | null, launch: { justUpdated: boolean }): void {
+export function registerIpc(
+  getWindow: () => BrowserWindow | null,
+  launch: Pick<LaunchInfo, 'justUpdated' | 'previousVersion'>
+): void {
   registerAuthIpc()
   registerRoleIpc()
 
@@ -70,11 +73,11 @@ export function registerIpc(getWindow: () => BrowserWindow | null, launch: { jus
     return updateSettings({ instancesDir: result.filePaths[0] })
   })
 
-  let justUpdated = launch.justUpdated
+  let update = launch
   ipcMain.handle('app:launchInfo', (): LaunchInfo => {
-    const info: LaunchInfo = { view: process.argv.includes('--studio') ? 'studio' : null, justUpdated }
+    const info: LaunchInfo = { view: process.argv.includes('--studio') ? 'studio' : null, ...update }
     // Annoncé une seule fois, même si la fenêtre est rechargée.
-    justUpdated = false
+    update = { justUpdated: false, previousVersion: null }
     return info
   })
 

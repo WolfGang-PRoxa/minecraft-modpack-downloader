@@ -9,8 +9,10 @@
   "main": "./out/main/index.js",
   "scripts": {
     "dev": "electron-vite dev",
-    "build": "npm run typecheck && electron-vite build",
+    "build": "npm run typecheck && npm run docs:verifier && electron-vite build",
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc -p relay/tsconfig.json",
+    "docs:verifier": "tsx scripts/docs.ts",
+    "changelog": "tsx scripts/changelog.ts",
     "build:win": "npm run build && electron-builder --win --publish never",
     "preview": "electron-vite preview",
     "studio": "electron-vite dev -- --studio",

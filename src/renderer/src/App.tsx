@@ -10,6 +10,8 @@ import { TitleBar } from './components/TitleBar'
 import { Toasts } from './components/Toasts'
 import { UpdateBar } from './components/UpdateBar'
 import { SetupView } from './components/Usage'
+import { DocsCenter } from './docs/DocsCenter'
+import { useDocs } from './docs/store'
 import { StudioView } from './studio/StudioView'
 import { useStore } from './store'
 
@@ -63,8 +65,16 @@ export function App() {
     window.addEventListener('focus', onFocus)
     // Application laissée ouverte : une nouvelle version finit par être proposée sans la relancer.
     const timer = setInterval(() => void autoRefresh(), 60_000)
+    // F1 ouvre ou ferme l'aide, sauf derrière une fenêtre de dialogue, qui garde la main.
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'F1' || document.querySelector('[aria-modal="true"]')) return
+      e.preventDefault()
+      useDocs.getState().toggle()
+    }
+    window.addEventListener('keydown', onKey)
     return () => {
       window.removeEventListener('focus', onFocus)
+      window.removeEventListener('keydown', onKey)
       clearInterval(timer)
     }
   }, [init, refreshLocal, autoRefresh])
@@ -95,6 +105,7 @@ export function App() {
           )}
         </main>
         <DetailsPanel />
+        <DocsCenter />
       </div>
 
       <SettingsDialog />

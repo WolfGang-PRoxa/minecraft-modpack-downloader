@@ -1,4 +1,8 @@
-import { CircleArrowUp, Download, LoaderCircle } from 'lucide-react'
+import { useMemo } from 'react'
+import { CircleArrowUp, Download, LoaderCircle, Sparkles } from 'lucide-react'
+import { parseReleaseNotes } from '../../../shared/changelog'
+import { CHANGELOG_PAGE } from '../docs/content'
+import { showDocs } from '../docs/store'
 import { formatBytes } from '../lib/format'
 import { useStore } from '../store'
 import { Button } from './Button'
@@ -16,6 +20,11 @@ export function UpdateBar() {
   const install = useStore((s) => s.installAppUpdate)
   const cancel = useStore((s) => s.cancelAppUpdate)
   const dismiss = useStore((s) => s.dismissAppUpdate)
+  // Les releases publiées avec leurs notes (tirées de CHANGELOG.md) disent ce que la mise à jour apporte.
+  const hasNotes = useMemo(
+    () => (update?.releases ?? []).some((release) => parseReleaseNotes(release.notes).sections.length > 0),
+    [update]
+  )
   if (!update || (!progress && dismissed === update.version)) return null
 
   const percent = progress?.total ? Math.min(100, Math.round((progress.done / progress.total) * 100)) : 0
@@ -71,6 +80,11 @@ export function UpdateBar() {
             >
               Mettre à jour
             </Button>
+            {hasNotes && (
+              <Button size="sm" variant="ghost" icon={Sparkles} onClick={() => showDocs(CHANGELOG_PAGE)}>
+                Nouveautés
+              </Button>
+            )}
             <Button size="sm" variant="ghost" onClick={dismiss}>
               Plus tard
             </Button>

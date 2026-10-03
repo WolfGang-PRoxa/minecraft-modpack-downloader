@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { CloudUpload, RefreshCw, WifiOff } from 'lucide-react'
+import { CloudUpload, LifeBuoy, RefreshCw, WifiOff } from 'lucide-react'
+import { showDocs } from '../docs/store'
 import { useStore } from '../store'
 import { Button } from './Button'
 import { Logo } from './Logo'
@@ -71,9 +72,14 @@ export function ErrorView({ message }: { message: string }) {
       </div>
       <h2 className="mt-8 font-display text-3xl font-bold tracking-tight">Impossible de charger les modpacks</h2>
       <p className="mt-3 max-w-md text-ink-300">{message}</p>
-      <Button className="mt-8" variant="primary" icon={RefreshCw} disabled={refreshing} onClick={() => void refresh(true)}>
-        Réessayer
-      </Button>
+      <div className="mt-8 flex gap-3">
+        <Button variant="primary" icon={RefreshCw} disabled={refreshing} onClick={() => void refresh(true)}>
+          Réessayer
+        </Button>
+        <Button variant="ghost" icon={LifeBuoy} onClick={() => showDocs('depannage', 'liste-des-modpacks')}>
+          Aide au dépannage
+        </Button>
+      </div>
     </CenteredMessage>
   )
 }

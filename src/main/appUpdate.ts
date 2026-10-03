@@ -27,16 +27,18 @@ export function cancelAppUpdate(): void {
 
 /**
  * À appeler une fois au démarrage : retient la version lancée et dit si l'application vient d'être mise à jour
- * (relancée par l'installeur avec --updated, ou version plus récente qu'au lancement précédent).
+ * (relancée par l'installeur avec --updated, ou version plus récente qu'au lancement précédent), et depuis quelle
+ * version : la page Nouveautés met en avant ce qui a changé depuis.
  */
-export async function noteRunningVersion(): Promise<boolean> {
+export async function noteRunningVersion(): Promise<{ justUpdated: boolean; previousVersion: string | null }> {
   try {
     const current = app.getVersion()
     const { lastRunVersion: previous } = await getSettings()
     if (previous !== current) await updateSettings({ lastRunVersion: current })
-    return process.argv.includes('--updated') || (previous !== null && compareVersions(current, previous) > 0)
+    const newer = previous !== null && compareVersions(current, previous) > 0
+    return { justUpdated: process.argv.includes('--updated') || newer, previousVersion: newer ? previous : null }
   } catch {
-    return false
+    return { justUpdated: false, previousVersion: null }
   }
 }
 
