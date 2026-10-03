@@ -13,6 +13,7 @@ import type {
 import { getCurseForgeStatus, isCurseForgeRunning, isGameRunningFrom, launchCurseForge } from './curseforge'
 import { downloadFile } from './download'
 import { pathExists, readJson, removeQuietly, renameWithRetry, writeJsonAtomic } from './fsutil'
+import { applyModStates, carryOverConfigs, hashConfigFiles, readModStates } from './playerChoices'
 import { getSettings } from './settings'
 import { extractZip } from './zip'
 
@@ -21,7 +22,8 @@ import { extractZip } from './zip'
  *  - keep : la version locale est conservée telle quelle ;
  *  - merge-local : on ajoute ce qui est nouveau, la version locale gagne en cas de conflit ;
  *  - merge-new : on garde les ajouts du joueur, la version du modpack gagne en cas de conflit.
- * Toute autre entrée fournie par le modpack (mods, config, kubejs…) est remplacée.
+ * Toute autre entrée fournie par le modpack (mods, config, kubejs…) est remplacée ; ensuite, les fichiers de config
+ * modifiés par le joueur (si le publieur le demande) et l'état de ses mods sont repris (voir playerChoices.ts).
  */
 const PLAYER_DATA: Record<string, 'keep' | 'merge-local' | 'merge-new'> = {
   'options.txt': 'keep',
@@ -78,6 +80,19 @@ export function cancelInstall(id: string): void {
   if (job?.cancellable) job.controller.abort()
 }
 
+/** Ce que la fenêtre voit d'une instance installée (sans les empreintes du marqueur). */
+function installedFrom(marker: InstanceMarker, instancePath: string): InstalledModpack {
+  return {
+    id: marker.id,
+    version: marker.version,
+    tag: marker.tag,
+    installedAt: marker.installedAt,
+    managedEntries: marker.managedEntries ?? [],
+    instanceName: basename(instancePath),
+    instancePath
+  }
+}
+
 export async function listInstalled(instancesDir: string): Promise<InstalledModpack[]> {
   const entries = await readdir(instancesDir, { withFileTypes: true }).catch(() => [])
   const installed: InstalledModpack[] = []
@@ -86,12 +101,7 @@ export async function listInstalled(instancesDir: string): Promise<InstalledModp
     const instancePath = join(instancesDir, entry.name)
     const marker = await readJson<InstanceMarker>(join(instancePath, INSTANCE_MARKER_FILE))
     if (marker && typeof marker.id === 'string' && typeof marker.version === 'string') {
-      installed.push({
-        ...marker,
-        managedEntries: marker.managedEntries ?? [],
-        instanceName: entry.name,
-        instancePath
-      })
+      installed.push(installedFrom(marker, instancePath))
     }
   }
   return installed
@@ -290,8 +300,11 @@ export async function installModpack(
       version: version.version,
       tag: version.tag,
       installedAt: new Date().toISOString(),
-      managedEntries
+      managedEntries,
+      // Ce que fournit cette version : la mise à jour suivante saura ce que le joueur a changé depuis.
+      configFiles: await hashConfigFiles(stagingDir)
     }
+    let keptConfigs = 0
 
     const finalize = async (targetDir: string, previousInstance: InstanceJson | null) => {
       const finalInstance = rewriteInstance(instance, targetDir, previousInstance)
@@ -314,12 +327,21 @@ export async function installModpack(
     if (previous) {
       targetDir = previous.instancePath
       const previousInstance = await readJson<InstanceJson>(join(targetDir, CURSEFORGE_INSTANCE_FILE))
+      const previousMarker = await readJson<InstanceMarker>(join(targetDir, INSTANCE_MARKER_FILE))
       // 1. On met l'ancienne instance de côté d'un seul renommage : s'il échoue, rien n'a bougé.
       const oldDir = join(workDir, 'old')
       await renameWithRetry(targetDir, oldDir)
       try {
-        // 2. On y récupère les données du joueur, 3. on met la nouvelle version en place.
+        // 2. On y récupère les données du joueur, ses configurations modifiées si le publieur le demande, et l'état
+        // de ses mods ; 3. on met la nouvelle version en place.
         await carryOverPlayerData({ ...previous, instancePath: oldDir }, stagingDir)
+        if (version.keepPlayerConfigs) {
+          keptConfigs = await carryOverConfigs(oldDir, stagingDir, previousMarker ?? previous, marker.configFiles ?? {})
+        }
+        marker.disabledByDefault = await applyModStates(stagingDir, instance, version.disabledMods, {
+          states: await readModStates(oldDir, previousInstance),
+          disabledByDefault: previousMarker?.disabledByDefault
+        })
         await finalize(targetDir, previousInstance)
       } catch (err) {
         // Par sécurité, on ne supprime rien : les mondes peuvent être dans l'un ou l'autre dossier.
@@ -331,6 +353,7 @@ export async function installModpack(
       }
     } else {
       targetDir = await uniqueInstanceDir(instancesDir, sanitizeFolderName(version.name, version.id))
+      marker.disabledByDefault = await applyModStates(stagingDir, instance, version.disabledMods, null)
       await finalize(targetDir, null)
     }
 
@@ -343,7 +366,8 @@ export async function installModpack(
       updated: previous !== null,
       curseForgeLaunched,
       curseForgeRunning,
-      installed: { ...marker, instanceName: basename(targetDir), instancePath: targetDir }
+      keptConfigs,
+      installed: installedFrom(marker, targetDir)
     }
   } catch (err) {
     if (signal.aborted) return { ok: false, cancelled: true, error: 'Installation annulée.' }

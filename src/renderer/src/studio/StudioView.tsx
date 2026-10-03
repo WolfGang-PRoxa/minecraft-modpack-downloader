@@ -25,6 +25,7 @@ import { ContentsDialog } from './ContentsDialog'
 import { DeleteDialog } from './DeleteDialog'
 import { PackCard } from './PackCard'
 import { ImportDialog, NewPackDialog, NotesDialog, PackInfoDialog } from './PackDialogs'
+import { PackSettingsDialog, StripDialog } from './PackSettingsDialog'
 import { PublishDialog } from './PublishDialog'
 import { RangerDialog } from './RangerDialog'
 import { useStore } from '../store'
@@ -408,6 +409,10 @@ function Dialogs() {
       return <NewPackDialog />
     case 'pack-info':
       return <PackInfoDialog key={dialog.folder} folder={dialog.folder} />
+    case 'pack-settings':
+      return <PackSettingsDialog key={dialog.folder} folder={dialog.folder} tab={dialog.tab} />
+    case 'strip':
+      return <StripDialog key={`${dialog.folder}/${dialog.fileName}`} {...dialog} />
     case 'notes':
       return <NotesDialog key={`${dialog.folder}-${dialog.version}`} folder={dialog.folder} version={dialog.version} />
     case 'import':

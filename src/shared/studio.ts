@@ -10,6 +10,43 @@ export interface StudioSettings {
   repo: RepoRef
 }
 
+/** Mod que les joueurs reçoivent désactivé : il est installé, et ils peuvent l'activer dans CurseForge. */
+export interface DisabledMod {
+  /** Projet CurseForge du mod : il le reconnaît d'une version à l'autre, même quand son fichier change. */
+  addonId: number | null
+  /** Fichier du dossier mods : il reconnaît un mod que CurseForge ne connaît pas. */
+  file: string
+  name: string | null
+}
+
+/** Réglages des versions d'un modpack, enregistrés dans son pack.json. */
+export interface PackSettings {
+  /** Fichiers et dossiers jamais publiés, depuis la racine de l'instance (voir shared/exclusions.ts). */
+  exclude: string[]
+  disabledMods: DisabledMod[]
+  /** Une mise à jour garde les fichiers du dossier config que le joueur a modifiés. */
+  keepPlayerConfigs: boolean
+}
+
+export const DEFAULT_PACK_SETTINGS: PackSettings = { exclude: [], disabledMods: [], keepPlayerConfigs: false }
+
+/**
+ * Un mod d'un zip (fichier sans `.disabled`) correspond à un mod désactivé des réglages : même projet CurseForge
+ * quand les deux le connaissent, sinon même fichier.
+ */
+export function matchesDisabledMod(mod: { addonId: number | null; file: string }, entry: DisabledMod): boolean {
+  if (mod.addonId !== null && entry.addonId !== null) return mod.addonId === entry.addonId
+  return mod.file.toLowerCase() === entry.file.toLowerCase()
+}
+
+/** Fichiers exclus du modpack trouvés dans un zip qui va être publié. */
+export interface ExcludedInZip {
+  /** Nombre de fichiers concernés. */
+  files: number
+  /** Chemins exclus trouvés (un dossier exclu compte pour un seul chemin). */
+  paths: string[]
+}
+
 /** Ce qu'on lit dans un zip de modpack. */
 export interface ZipAnalysis {
   sha256: string
@@ -36,6 +73,8 @@ export interface VersionView {
   remote: RemoteStatus
   /** Ce qui changera sur GitHub à la prochaine publication. */
   changes: string[]
+  /** Fichiers exclus du modpack présents dans un zip qui partira à la prochaine publication. */
+  excluded: ExcludedInZip | null
 }
 
 /** Zip déposé dans le dossier mais pas encore numéroté. */
@@ -46,6 +85,7 @@ export interface PendingZip {
   /** Zip inutilisable : il ne sera pas rangé. */
   error: string | null
   warnings: string[]
+  excluded: ExcludedInZip | null
 }
 
 /** Version présente sur GitHub dont le zip n'existe plus sur le PC. */
@@ -63,6 +103,7 @@ export interface PackView {
   name: string
   description: string
   coverUrl: string | null
+  settings: PackSettings
   /** Versions numérotées, de la plus récente à la plus ancienne. */
   versions: VersionView[]
   pending: PendingZip[]
@@ -192,6 +233,8 @@ export interface ZipMod {
   size: number
   /** `.jar.disabled` : désactivé dans CurseForge, ignoré par le jeu. */
   disabled: boolean
+  /** Projet CurseForge du mod, quand minecraftinstance.json le connaît. */
+  addonId: number | null
   name: string | null
   author: string | null
   /** Page CurseForge du mod. */
@@ -224,6 +267,7 @@ export interface StudioApi {
 
   createPack(name: string): Promise<ActionResult>
   updatePackInfo(folder: string, info: { name: string; description: string }): Promise<ActionResult>
+  updatePackSettings(folder: string, settings: PackSettings): Promise<ActionResult>
   pickCover(folder: string): Promise<ActionResult>
   removeCover(folder: string): Promise<ActionResult>
   setNotes(folder: string, version: number, notes: string): Promise<ActionResult>
@@ -245,6 +289,8 @@ export interface StudioApi {
 
   listInstances(): Promise<{ dir: string; instances: CurseForgeInstanceInfo[] }>
   zipInstance(folder: string, instancePath: string, includeSaves: boolean): Promise<ActionResult & { fileName?: string }>
+  /** Retire d'un zip du modpack les fichiers exclus dans ses réglages (même progression que la création d'un zip). */
+  stripExcluded(folder: string, fileName: string): Promise<ActionResult & { removed?: number }>
   cancelZip(): Promise<void>
   onZipProgress(listener: (progress: ZipProgress) => void): () => void
 

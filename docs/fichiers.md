@@ -40,8 +40,10 @@ L’application ajoute deux fichiers à chaque profil qu’elle installe :
 
 - **`.modpack-downloader.json`**, le marqueur : l’identifiant du modpack, sa version, son tag, la date
   d’installation et la liste des éléments fournis par le modpack (`managedEntries`), qui sert à savoir quoi
-  remplacer lors d’une mise à jour. C’est la seule preuve qu’un profil a été installé par l’application : sans lui,
-  le profil n’est plus mis à jour sur place, seulement reconnu à ses mods ;
+  remplacer lors d’une mise à jour. Il note aussi ce que la version a installé, pour reconnaître ensuite ce que tu as
+  changé : l’empreinte de chaque fichier du dossier `config` (`configFiles`) et les mods installés désactivés
+  (`disabledByDefault`). C’est la seule preuve qu’un profil a été installé par l’application : sans lui, le profil
+  n’est plus mis à jour sur place, seulement reconnu à ses mods ;
 - **`.modpack-cover.png`** (ou `.jpg`, `.webp`) : l’image du modpack, utilisée comme image du profil dans
   CurseForge.
 
@@ -71,6 +73,8 @@ Le fichier `modpack.json` décrit la version :
 | `archive`, `archiveSize`, `archiveSha256` | Nom, taille et empreinte SHA-256 du zip, vérifiée après chaque téléchargement. |
 | `cover`, `coverSha256` | Nom et empreinte de l’image, ou `null`. |
 | `modsSignature` | Empreinte des mods (voir ci-dessous). |
+| `disabledMods` | Les fichiers du dossier `mods` installés désactivés (voir [Réglages des versions](reglages.md#désactiver-des-mods-chez-les-joueurs)). Absent s’il n’y en a pas. |
+| `keepPlayerConfigs` | `true` si une mise à jour garde les configurations modifiées par le joueur. Absent sinon. |
 | `author` | Propriétaire du dépôt. |
 | `createdAt` | Date de première publication de la version. |
 

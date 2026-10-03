@@ -7,6 +7,7 @@ import { showDocs } from '../docs/store'
 import { formatDate } from '../lib/format'
 import { useStore } from '../store'
 import { Button, IconButton } from './Button'
+import { Toggle } from './Toggle'
 import { CommandLineHint, WorkspaceFolderSetting } from '../studio/StudioSettings'
 import { PlayerUsageSection } from './Usage'
 
@@ -14,23 +15,6 @@ const SOURCE_LABELS = {
   settings: 'Choisi manuellement',
   curseforge: 'Détecté automatiquement depuis CurseForge',
   default: 'Emplacement par défaut de CurseForge'
-}
-
-function Toggle({ checked, onChange, label }: { checked: boolean; onChange: (value: boolean) => void; label: string }) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      aria-label={label}
-      onClick={() => onChange(!checked)}
-      className={`relative h-7 w-12 shrink-0 rounded-full transition ${checked ? 'bg-grass-500' : 'bg-ink-600'}`}
-    >
-      <span
-        className={`absolute top-1 left-1 size-5 rounded-full bg-white shadow transition-transform ${checked ? 'translate-x-5' : ''}`}
-      />
-    </button>
-  )
 }
 
 function Section({ title, children }: { title: string; children: ReactNode }) {

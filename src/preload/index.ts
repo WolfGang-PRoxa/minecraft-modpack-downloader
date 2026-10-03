@@ -59,6 +59,7 @@ const studio: StudioApi = {
 
   createPack: (name) => ipcRenderer.invoke('studio:createPack', name),
   updatePackInfo: (folder, info) => ipcRenderer.invoke('studio:updatePackInfo', folder, info),
+  updatePackSettings: (folder, settings) => ipcRenderer.invoke('studio:updatePackSettings', folder, settings),
   pickCover: (folder) => ipcRenderer.invoke('studio:pickCover', folder),
   removeCover: (folder) => ipcRenderer.invoke('studio:removeCover', folder),
   setNotes: (folder, version, notes) => ipcRenderer.invoke('studio:setNotes', folder, version, notes),
@@ -78,6 +79,7 @@ const studio: StudioApi = {
   listInstances: () => ipcRenderer.invoke('studio:listInstances'),
   zipInstance: (folder, instancePath, includeSaves) =>
     ipcRenderer.invoke('studio:zipInstance', folder, instancePath, includeSaves),
+  stripExcluded: (folder, fileName) => ipcRenderer.invoke('studio:stripExcluded', folder, fileName),
   cancelZip: () => ipcRenderer.invoke('studio:cancelZip'),
   onZipProgress: (listener) => subscribe('studio:zip-progress', listener),
 

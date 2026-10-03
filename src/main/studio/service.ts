@@ -3,8 +3,10 @@ import { APP_REPO } from '../../shared/config'
 import { modpackTag, parseModpackTag } from '../../shared/releases'
 import { repoSlug, repoUrl, sameRepo } from '../../shared/repo'
 import type {
+  ExcludedInZip,
   GitHubStatus,
   OrphanPack,
+  PackSettings,
   PackView,
   PublishProgress,
   PublishResult,
@@ -12,14 +14,15 @@ import type {
   RangerPlan,
   StudioOverview,
   StudioSettings,
+  ZipAnalysis,
   ZipContents,
   ZipEntryPreview
 } from '../../shared/studio'
 import type { RepoRef, Settings } from '../../shared/types'
 import type { Credential } from '../auth'
 import { pathExists } from '../fsutil'
-import { AnalysisCache, describeError, StudioError } from './analyze'
-import { zipInstance } from './archive'
+import { AnalysisCache, describeError, StudioError, type CachedAnalysis } from './analyze'
+import { findExcludedInZip, stripExcludedFromZip, zipInstance } from './archive'
 import { previewZipEntry, readZipContents } from './contents'
 import { GitHubClient } from './githubApi'
 import { applyPlan, computePlan, fetchRemoteState, highestRemoteNumber, type InternalPlan, type RemoteState } from './sync'
@@ -29,14 +32,45 @@ import {
   importFiles,
   loadPackMeta,
   nextVersionNumber,
+  normalizePackSettings,
   planRanger,
   scanWorkspace,
   setCover,
   versionFileName,
   writePackFile,
   type LocalPack,
-  type LocalWorkspace
+  type LocalWorkspace,
+  type LocalZip
 } from './workspace'
+
+/** Analyse telle que la fenêtre l'affiche : la liste des mods reste dans le processus principal. */
+function shownAnalysis(analysis: CachedAnalysis | null): ZipAnalysis | null {
+  if (!analysis) return null
+  const { mods: _mods, ...shown } = analysis
+  return shown
+}
+
+/** Fichiers exclus trouvés dans les zips qui partiront à la prochaine publication, par chemin du zip. */
+type ExcludedMap = Map<string, ExcludedInZip>
+
+export function describeExcluded(excluded: ExcludedInZip): string {
+  const shown = excluded.paths.slice(0, 4).join(', ') + (excluded.paths.length > 4 ? '…' : '')
+  const files = `${excluded.files} fichier${excluded.files > 1 ? 's' : ''}`
+  return `${files} exclu${excluded.files > 1 ? 's' : ''} dans les réglages du modpack (${shown})`
+}
+
+/** Prévient, dans le plan de publication, qu'un zip envoyé contient des fichiers exclus. */
+function annotatePlan(plan: InternalPlan, excluded: ExcludedMap): void {
+  for (const step of plan.steps) {
+    if (step.kind === 'delete' || (step.kind === 'update' && !step.archive)) continue
+    const found = excluded.get(step.desired.version.path)
+    if (found) {
+      step.action.warnings.push(
+        `Ce zip contient ${describeExcluded(found)} : ils seront publiés. « Retirer du zip », sur la ligne de la version, les enlève.`
+      )
+    }
+  }
+}
 
 export interface StudioServiceOptions {
   /** Dossier des modpacks (réglage propre au studio). */
@@ -80,6 +114,8 @@ export class StudioService {
   private remoteRepo: RepoRef = APP_REPO
   private github: GitHubStatus = uncheckedGitHub(APP_REPO)
   private busy: string | null = null
+  /** Fichiers exclus déjà cherchés dans un zip, par zip (chemin, taille, date) et liste d'exclusions. */
+  private excludedMemo = new Map<string, ExcludedInZip | null>()
 
   constructor(private readonly options: StudioServiceOptions) {}
 
@@ -179,10 +215,12 @@ export class StudioService {
     }
     const workspace = await this.scan()
     const plan = workspace && this.remote ? computePlan(workspace, this.remote, this.remoteRepo.owner) : null
+    const excluded = workspace ? await this.findExcluded(workspace, plan) : new Map()
+    if (plan) annotatePlan(plan, excluded)
     return {
       settings,
       workspaceExists: workspace?.exists ?? false,
-      packs: workspace ? workspace.packs.map((pack) => this.packView(pack, plan)) : [],
+      packs: workspace ? workspace.packs.map((pack) => this.packView(pack, plan, excluded)) : [],
       strayZips: workspace?.strayZips ?? [],
       orphanPacks: workspace && plan ? this.orphanPacks(workspace, plan) : [],
       toRange: workspace ? planRanger(workspace).total : 0,
@@ -191,7 +229,35 @@ export class StudioService {
     }
   }
 
-  private packView(pack: LocalPack, plan: InternalPlan | null): PackView {
+  /**
+   * Cherche les fichiers exclus dans les zips qui partiront à la prochaine publication : les zips à ranger, et les
+   * versions dont le zip sera envoyé (nouvelles, ou zip remplacé). Sans GitHub, seulement les zips à ranger.
+   */
+  private async findExcluded(workspace: LocalWorkspace, plan: InternalPlan | null): Promise<ExcludedMap> {
+    const uploaded = new Set<string>()
+    for (const step of plan?.steps ?? []) {
+      if (step.kind === 'create' || (step.kind === 'update' && step.archive)) uploaded.add(step.desired.version.path)
+    }
+    const found: ExcludedMap = new Map()
+    const memo = new Map<string, ExcludedInZip | null>()
+    for (const pack of workspace.packs) {
+      if (!pack.meta.exclude.length) continue
+      const zips: LocalZip[] = [...pack.pending, ...pack.versions.filter((v) => uploaded.has(v.path))]
+      for (const zip of zips) {
+        if (zip.error) continue
+        const key = `${zip.path}|${zip.size}|${Math.floor(zip.mtimeMs)}|${pack.meta.exclude.join('\n').toLowerCase()}`
+        let result = this.excludedMemo.get(key)
+        if (result === undefined) result = await findExcludedInZip(zip.path, pack.meta.exclude)
+        memo.set(key, result)
+        if (result) found.set(zip.path, result)
+      }
+    }
+    // Seuls les zips encore concernés restent en mémoire.
+    this.excludedMemo = memo
+    return found
+  }
+
+  private packView(pack: LocalPack, plan: InternalPlan | null, excluded: ExcludedMap): PackView {
     const blocked = pack.errors.length > 0
     const remoteOnly = plan
       ? plan.steps
@@ -213,6 +279,11 @@ export class StudioService {
       name: pack.meta.name,
       description: pack.meta.description,
       coverUrl: this.options.coverUrl?.(pack) ?? null,
+      settings: {
+        exclude: pack.meta.exclude,
+        disabledMods: pack.meta.disabledMods,
+        keepPlayerConfigs: pack.meta.keepPlayerConfigs
+      },
       versions: [...pack.versions].reverse().map((v) => {
         const status = plan?.statuses.get(modpackTag(pack.meta.id, String(v.number)))
         return {
@@ -221,11 +292,12 @@ export class StudioService {
           path: v.path,
           size: v.size,
           modifiedAt: new Date(v.mtimeMs).toISOString(),
-          analysis: v.analysis,
+          analysis: shownAnalysis(v.analysis),
           error: v.error,
           notes: pack.meta.notes[String(v.number)] ?? '',
           remote: blocked || v.error ? 'blocked' : (status?.status ?? 'unknown'),
-          changes: status?.changes ?? []
+          changes: status?.changes ?? [],
+          excluded: excluded.get(v.path) ?? null
         }
       }),
       pending: pack.pending.map((f) => ({
@@ -233,7 +305,8 @@ export class StudioService {
         size: f.size,
         modifiedAt: new Date(f.mtimeMs).toISOString(),
         error: f.error,
-        warnings: f.analysis?.warnings ?? []
+        warnings: f.analysis?.warnings ?? [],
+        excluded: excluded.get(f.path) ?? null
       })),
       remoteOnly,
       errors: pack.errors,
@@ -286,7 +359,9 @@ export class StudioService {
     }
     const workspace = await this.scan()
     if (!workspace?.exists) throw new StudioError('Le dossier des modpacks est introuvable.')
-    return computePlan(workspace, this.remote, this.remoteRepo.owner)
+    const plan = computePlan(workspace, this.remote, this.remoteRepo.owner)
+    annotatePlan(plan, await this.findExcluded(workspace, plan))
+    return plan
   }
 
   publish(
@@ -459,6 +534,12 @@ export class StudioService {
     await writePackFile(dir, { ...meta, name, description: info.description.trim() })
   }
 
+  /** Enregistre les réglages des versions d'un modpack (fichiers exclus, mods désactivés, configurations). */
+  async updatePackSettings(folder: string, settings: PackSettings): Promise<void> {
+    const { dir, meta } = await loadPackMeta(this.requireWorkspace(), folder)
+    await writePackFile(dir, { ...meta, ...normalizePackSettings(settings) })
+  }
+
   async setNotes(folder: string, version: number, notes: string): Promise<void> {
     const { dir, meta } = await loadPackMeta(this.requireWorkspace(), folder)
     await writePackFile(dir, { ...meta, notes: { ...meta.notes, [String(version)]: notes.replace(/\r\n/g, '\n').trim() } })
@@ -492,9 +573,31 @@ export class StudioService {
       if (pack.packFileError) throw new StudioError(pack.packFileError)
       const number = nextVersionNumber(pack)
       const fileName = versionFileName(pack.folder, number)
-      await zipInstance(instancePath, join(pack.dir, fileName), { includeSaves, onProgress, signal })
+      await zipInstance(instancePath, join(pack.dir, fileName), {
+        includeSaves,
+        exclude: pack.meta.exclude,
+        onProgress,
+        signal
+      })
       await writePackFile(pack.dir, { ...pack.meta, lastVersion: number })
       return fileName
+    })
+  }
+
+  /** Retire d'un zip du modpack (zip à ranger ou version) les fichiers exclus dans ses réglages. */
+  stripExcluded(
+    folder: string,
+    fileName: string,
+    onProgress: (done: number, total: number) => void,
+    signal: AbortSignal
+  ): Promise<number> {
+    return this.exclusive('le nettoyage du zip', async () => {
+      const file = await this.packZip(folder, fileName)
+      const { meta } = await loadPackMeta(this.requireWorkspace(), folder)
+      if (!meta.exclude.length) throw new StudioError('Aucun fichier n’est exclu dans les réglages de ce modpack.')
+      const removed = await stripExcludedFromZip(file, meta.exclude, { onProgress, signal })
+      if (removed === 0) throw new StudioError('Ce zip ne contient aucun fichier exclu.')
+      return removed
     })
   }
 }

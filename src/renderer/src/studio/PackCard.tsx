@@ -3,26 +3,32 @@ import type { LucideIcon } from 'lucide-react'
 import {
   CircleAlert,
   CloudOff,
+  Eraser,
   ExternalLink,
   Eye,
+  EyeOff,
   FileArchive,
   FolderOpen,
   Hourglass,
   NotebookPen,
   PackagePlus,
   Pencil,
+  PowerOff,
+  ShieldCheck,
+  SlidersHorizontal,
   Trash2,
   TriangleAlert,
   Upload
 } from 'lucide-react'
 import { findPresentVersions, type PresentVersion } from '../../../shared/presence'
-import type { PackView, PendingZip, RemoteOnlyVersion, RemoteStatus, VersionView } from '../../../shared/studio'
+import type { ExcludedInZip, PackView, PendingZip, RemoteOnlyVersion, RemoteStatus, VersionView } from '../../../shared/studio'
 import type { CurseForgeProfile } from '../../../shared/types'
 import { describePresence } from '../components/Badges'
 import { Button, IconButton } from '../components/Button'
 import { Cover } from '../components/Cover'
 import { formatBytes, formatDate, formatLoader } from '../lib/format'
 import { useStore } from '../store'
+import { describeExcluded, type SettingsTab } from './PackSettingsDialog'
 import { errorMessage, openLink, openPath, useStudio } from './store'
 
 const STATUS: Record<RemoteStatus, { label: string; className: string }> = {
@@ -62,6 +68,66 @@ function Message({ tone, children }: { tone: 'warning' | 'error'; children: Reac
       <Icon size={13} className="mt-px shrink-0" />
       <span>{children}</span>
     </p>
+  )
+}
+
+/** Un zip qui partira à la prochaine publication contient des fichiers exclus dans les réglages du modpack. */
+function ExcludedWarning({
+  folder,
+  fileName,
+  label,
+  excluded,
+  pending
+}: {
+  folder: string
+  fileName: string
+  label: string
+  excluded: ExcludedInZip
+  pending: boolean
+}) {
+  const openDialog = useStudio((s) => s.openDialog)
+  return (
+    <Message tone="warning">
+      Contient {describeExcluded(excluded)} : {pending ? 'ils partiront avec ce zip' : 'ils seront publiés avec cette version'}.{' '}
+      <button
+        type="button"
+        onClick={() => openDialog({ kind: 'strip', folder, fileName, label })}
+        className="inline-flex items-center gap-1 font-semibold text-amber-glow underline-offset-2 hover:underline"
+      >
+        <Eraser size={12} /> Retirer du zip
+      </button>
+    </Message>
+  )
+}
+
+/** Résumé des réglages des versions du modpack ; chaque pastille ouvre l'onglet correspondant. */
+function SettingsSummary({ pack }: { pack: PackView }) {
+  const openDialog = useStudio((s) => s.openDialog)
+  const { exclude, disabledMods, keepPlayerConfigs } = pack.settings
+  const items: Array<{ tab: SettingsTab; icon: LucideIcon; label: string }> = []
+  if (exclude.length) items.push({ tab: 'files', icon: EyeOff, label: `${exclude.length} exclusion${exclude.length > 1 ? 's' : ''}` })
+  if (disabledMods.length) {
+    items.push({
+      tab: 'mods',
+      icon: PowerOff,
+      label: `${disabledMods.length} mod${disabledMods.length > 1 ? 's' : ''} désactivé${disabledMods.length > 1 ? 's' : ''} chez les joueurs`
+    })
+  }
+  if (keepPlayerConfigs) items.push({ tab: 'configs', icon: ShieldCheck, label: 'Configurations des joueurs gardées' })
+  if (!items.length) return null
+  return (
+    <div className="mt-2.5 flex flex-wrap gap-2">
+      {items.map(({ tab, icon: Icon, label }) => (
+        <button
+          key={tab}
+          type="button"
+          onClick={() => openDialog({ kind: 'pack-settings', folder: pack.folder, tab })}
+          className="inline-flex items-center gap-1.5 rounded-full bg-white/[0.05] px-2.5 py-1 text-xs font-semibold text-ink-300 ring-1 ring-inset ring-white/[0.08] transition hover:bg-white/[0.09] hover:text-ink-100"
+        >
+          <Icon size={12} strokeWidth={2.5} /> {label}
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -221,6 +287,15 @@ function VersionRow({ pack, version, present }: { pack: PackView; version: Versi
           {warning}
         </Message>
       ))}
+      {version.excluded && (
+        <ExcludedWarning
+          folder={pack.folder}
+          fileName={version.fileName}
+          label={`la v${version.number}`}
+          excluded={version.excluded}
+          pending={false}
+        />
+      )}
     </Row>
   )
 }
@@ -261,6 +336,7 @@ function PendingRow({ folder, zip, number }: { folder: string; zip: PendingZip; 
           {warning}
         </Message>
       ))}
+      {zip.excluded && <ExcludedWarning folder={folder} fileName={zip.fileName} label={zip.fileName} excluded={zip.excluded} pending />}
     </Row>
   )
 }
@@ -411,9 +487,13 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
             <p className="mt-1.5 text-sm text-ink-500 italic">Pas encore de description.</p>
           )}
           <CurseForgeNote pack={pack} present={present} profiles={profiles} />
+          <SettingsSummary pack={pack} />
           <div className="mt-auto flex flex-wrap gap-2 pt-4">
             <Button size="sm" icon={Pencil} onClick={() => openDialog({ kind: 'pack-info', folder: pack.folder })}>
               Infos et image
+            </Button>
+            <Button size="sm" icon={SlidersHorizontal} onClick={() => openDialog({ kind: 'pack-settings', folder: pack.folder })}>
+              Réglages
             </Button>
             <Button size="sm" icon={PackagePlus} onClick={() => openDialog({ kind: 'import', folder: pack.folder })}>
               Créer la v{pack.nextVersion} depuis CurseForge
@@ -421,15 +501,13 @@ export function PackCard({ pack, index }: { pack: PackView; index: number }) {
             <Button size="sm" variant="ghost" icon={FolderOpen} onClick={() => openPath(pack.dir)}>
               Ouvrir le dossier
             </Button>
-            <Button
-              size="sm"
-              variant="ghost"
+            <IconButton
               icon={Trash2}
+              size={16}
+              label="Supprimer le modpack"
               className={`ml-auto ${DANGER_HOVER}`}
               onClick={() => openDialog({ kind: 'delete', target: { type: 'pack', folder: pack.folder } })}
-            >
-              Supprimer
-            </Button>
+            />
           </div>
         </div>
       </div>

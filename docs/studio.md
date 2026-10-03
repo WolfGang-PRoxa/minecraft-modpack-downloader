@@ -42,7 +42,7 @@ Modpacks/
     Hardcore_Endgame-v2.zip
     ma-derniere-maj.zip         ← zip déposé, pas encore rangé
     cover.png                   ← image du modpack (facultative, 16:9)
-    pack.json                   ← géré par le Studio : nom, description, notes
+    pack.json                   ← géré par le Studio : nom, description, notes, réglages
   Autre_Modpack/
   .studio-cache.json            ← analyses des zips, gardées en cache
 ```
@@ -85,14 +85,18 @@ Chaque modpack a sa carte :
 - son **image** (un clic ouvre **Infos et image**), son **nom**, son **identifiant** (en petits caractères) et sa
   description ;
 - une ligne qui indique **la version que contient ton CurseForge** (voir plus bas) ;
-- les boutons **Infos et image**, **Créer la vN depuis CurseForge**, **Ouvrir le dossier** et **Supprimer** ;
+- les pastilles des [réglages des versions](reglages.md) en service (fichiers exclus, mods désactivés,
+  configurations gardées) : un clic ouvre le réglage ;
+- les boutons **Infos et image**, **Réglages**, **Créer la vN depuis CurseForge**, **Ouvrir le dossier**, et la
+  corbeille (**Supprimer le modpack**) ;
 - en rouge, les **erreurs** qui empêchent sa publication ;
 - puis une ligne par zip : les zips **à ranger** en premier, les **versions** de la plus récente à la plus ancienne,
   et les versions encore sur GitHub dont le zip a disparu.
 
 Une ligne de version indique le nom du zip, sa taille, la version de Minecraft, le mod loader, le nombre de mods et
-la date du fichier, ainsi que les avertissements de l’analyse (mondes inclus, fichiers inutiles…). À droite : son
-statut, et les boutons **Contenu**, **Notes** (ou **Ajouter des notes**) et la corbeille.
+la date du fichier, ainsi que les avertissements de l’analyse (mondes inclus, fichiers inutiles, fichiers exclus
+dans les réglages…). À droite : son statut, et les boutons **Contenu**, **Notes** (ou **Ajouter des notes**) et la
+corbeille.
 
 Tu peux **glisser-déposer** des fichiers sur une carte : les zips sont copiés dans le dossier du modpack, une image
 remplace son image de couverture, et les autres fichiers sont ignorés.
@@ -103,7 +107,7 @@ remplace son image de couverture, et les autres fichiers sont ignorés.
 |---|---|
 | **En ligne** | Publiée sur GitHub, identique au dossier. |
 | **À publier** | Pas encore sur GitHub : elle sera créée à la prochaine publication. |
-| **Modifiée** | Sur GitHub, mais quelque chose a changé (zip, image, nom, description ou notes). Survole le statut pour voir quoi. |
+| **Modifiée** | Sur GitHub, mais quelque chose a changé (zip, image, nom, description, notes ou réglages des versions). Survole le statut pour voir quoi. |
 | **Non publiable** | Le zip est refusé, ou le modpack est en erreur. |
 | **GitHub non vérifié** | GitHub n’a pas encore pu être lu. |
 | **Sera retirée** | Sa release est sur GitHub mais son zip n’est plus dans le dossier : elle sera supprimée. |
@@ -146,6 +150,9 @@ Chaque dossier de modpack contient un fichier `pack.json`, géré par le Studio 
 | `description` | La description courte. |
 | `lastVersion` | Le plus grand numéro de version jamais attribué : un numéro n’est jamais réutilisé. |
 | `notes` | Les notes de chaque version, en Markdown, par numéro. |
+| `exclude` | Les [fichiers exclus](reglages.md#exclure-des-fichiers) : des chemins depuis la racine de l’instance. Absent s’il n’y en a pas. |
+| `disabledMods` | Les [mods désactivés chez les joueurs](reglages.md#désactiver-des-mods-chez-les-joueurs) : pour chacun, son projet CurseForge (`addonId`, ou `null`), son fichier (`file`) et son nom (`name`). Absent s’il n’y en a pas. |
+| `keepPlayerConfigs` | `true` pour [garder les configurations modifiées par les joueurs](reglages.md#garder-les-configurations-des-joueurs). Absent sinon. |
 
 Tu peux le modifier à la main avec précaution : un fichier illisible, un identifiant invalide ou déjà utilisé par un
 autre dossier bloquent la publication du modpack, avec un message qui dit quoi corriger.

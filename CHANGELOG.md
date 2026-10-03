@@ -10,6 +10,11 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 
 ### Ajouts
 
+- Studio : **Réglages des versions** de chaque modpack. Choisis les fichiers que tu ne publies jamais (tes options du
+  jeu, tes shaders, un mod personnel…), les mods que les joueurs reçoivent désactivés, et si les configurations qu’ils
+  ont modifiées sont gardées à chaque mise à jour.
+- Studio : un zip qui contient des fichiers exclus le signale avant d’être publié, et **Retirer du zip** les enlève.
+- Les mods qu’un publieur propose en option sont installés désactivés : active ceux que tu veux dans CurseForge.
 - Une fenêtre **Mise à jour**, distincte de celle de l’installation, indique ta version et la nouvelle (par exemple
   `1.0.3 → 1.0.4`).
 - Lancé pendant que l’application est ouverte, l’installeur prévient qu’il va la fermer (**Fermer et continuer** ou
@@ -17,6 +22,8 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 
 ### Améliorations
 
+- La mise à jour d’un modpack garde les mods que tu as activés ou désactivés dans CurseForge, et, si le publieur l’a
+  choisi, les fichiers de configuration que tu as modifiés.
 - Les fenêtres de l’installeur et du désinstalleur prennent le style de l’application : fond sombre, logo, couleurs,
   boutons et barre de progression.
 - Relancé alors que l’application est déjà installée, l’installeur affiche une page claire (**Ouvrir l’application**,

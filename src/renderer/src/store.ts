@@ -214,12 +214,14 @@ export const useStore = create<State>((set, get) => ({
       const result = await window.api.install(version)
       if (result.ok) {
         const title = result.updated ? `${version.name} est à jour` : `${version.name} est installé`
+        const n = result.keptConfigs
+        const kept = n > 0 ? ` ${n} fichier${n > 1 ? 's' : ''} de configuration que tu avais modifié${n > 1 ? 's ont' : ' a'} été gardé${n > 1 ? 's' : ''}.` : ''
         if (result.curseForgeRunning) {
           // CurseForge ne relit ses profils qu'au démarrage : ouvert pendant l'installation, il peut ne pas voir celui-ci.
           get().pushToast({
             kind: 'success',
             title,
-            message: 'CurseForge était déjà ouvert : s’il n’affiche pas encore ce modpack, relance-le.',
+            message: `CurseForge était déjà ouvert : s’il n’affiche pas encore ce modpack, relance-le.${kept}`,
             action: { label: 'Relancer CurseForge', run: () => void get().restartCurseForge() },
             sticky: true
           })
@@ -227,9 +229,11 @@ export const useStore = create<State>((set, get) => ({
           get().pushToast({
             kind: 'success',
             title,
-            message: result.curseForgeLaunched
-              ? 'CurseForge est ouvert : lance le profil depuis l’onglet Minecraft.'
-              : 'Le profil est disponible dans CurseForge, onglet Minecraft.',
+            message: `${
+              result.curseForgeLaunched
+                ? 'CurseForge est ouvert : lance le profil depuis l’onglet Minecraft.'
+                : 'Le profil est disponible dans CurseForge, onglet Minecraft.'
+            }${kept}`,
             action: result.curseForgeLaunched ? undefined : { label: 'Ouvrir CurseForge', run: () => void get().launchCurseForge() }
           })
         }

@@ -27,6 +27,9 @@ L’aperçu peut afficher ces avertissements :
 - des zips ne sont **pas encore rangés** : ils seront ignorés. Ferme l’aperçu et range-les d’abord ;
 - un modpack **en erreur** est ignoré tant que ses erreurs ne sont pas corrigées ;
 - un modpack **n’aura plus aucune version** : il disparaîtra de l’application des joueurs ;
+- une version contient des **fichiers exclus** dans les réglages du modpack : ils partiraient avec elle. Ferme
+  l’aperçu et utilise **Retirer du zip** sur la ligne de la version (voir
+  [Un zip qui contient des fichiers exclus](reglages.md#un-zip-qui-contient-des-fichiers-exclus)) ;
 - le dossier **ne contient aucun modpack** alors que GitHub en a : publier supprimerait tout. Vérifie que le dossier
   choisi est le bon.
 
@@ -59,6 +62,7 @@ Une version déjà publiée est mise à jour quand :
 | Le zip manque ou est incomplet sur GitHub | Le zip, puis `modpack.json` |
 | L’image a changé | L’image, puis `modpack.json` |
 | Le nom ou la description a changé | `modpack.json` et le titre de la release |
+| Les mods désactivés ou l’option des configurations ont changé ([réglages des versions](reglages.md)) | `modpack.json` |
 | Les notes ont changé | Le texte de la release |
 | Des fichiers en trop sont sur la release | Ils sont retirés |
 
@@ -78,8 +82,8 @@ de supprimer tout de suite, après une confirmation qui dit exactement ce qui va
 - **la corbeille au bout d’une version** : son zip part à la corbeille de Windows et sa release est retirée de
   GitHub, avec son tag. La fenêtre de confirmation indique quelle version redevient la dernière proposée aux
   joueurs, ou si le modpack disparaît de leur application ;
-- **Supprimer**, sur la carte d’un modpack : son dossier part à la corbeille (zips, image, notes) et toutes ses
-  releases sont retirées ;
+- **la corbeille de la carte d’un modpack** (« Supprimer le modpack ») : son dossier part à la corbeille (zips,
+  image, notes, réglages) et toutes ses releases sont retirées ;
 - **Retirer maintenant**, sur un modpack dont le dossier n’existe plus, ou **la corbeille** d’une version
   « Sera retirée » : ses releases sont retirées sans rien toucher sur ton PC.
 

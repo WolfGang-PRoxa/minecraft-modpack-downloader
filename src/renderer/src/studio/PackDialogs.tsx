@@ -244,6 +244,7 @@ function InstanceRow({
 export function ImportDialog({ folder }: { folder: string }) {
   const pack = usePack(folder)
   const close = useStudio((s) => s.closeDialog)
+  const openDialog = useStudio((s) => s.openDialog)
   const pushToast = useStudio((s) => s.pushToast)
   const refresh = useStudio((s) => s.refresh)
   const [data, setData] = useState<{ dir: string; instances: CurseForgeInstanceInfo[] } | null>(null)
@@ -351,6 +352,25 @@ export function ImportDialog({ folder }: { folder: string }) {
           </div>
         </>
       )}
+      <p className="mt-4 flex flex-wrap items-baseline gap-x-2 gap-y-1 text-xs text-ink-400">
+        {pack.settings.exclude.length > 0 ? (
+          <>
+            <span>Exclus aussi, d’après les réglages du modpack :</span>
+            <span className="font-mono text-ink-300 select-text">{pack.settings.exclude.join(' · ')}</span>
+          </>
+        ) : (
+          <span>Pour laisser d’autres fichiers de côté (shaders, options…), exclus-les dans les réglages du modpack.</span>
+        )}
+        {!running && (
+          <button
+            type="button"
+            onClick={() => openDialog({ kind: 'pack-settings', folder, tab: 'files' })}
+            className="font-semibold text-grass-300 transition hover:text-grass-400"
+          >
+            Réglages des versions
+          </button>
+        )}
+      </p>
     </Modal>
   )
 }

@@ -12,12 +12,14 @@ recommencer à chaque mise à jour en espérant ne pas perdre ses mondes) :
 - elle liste les modpacks publiés, avec leur description, leurs notes de version et l’historique de leurs versions ;
 - elle installe un modpack directement comme profil CurseForge, après avoir vérifié l’intégrité du téléchargement ;
 - elle le met à jour sur place quand une nouvelle version sort, en conservant tes mondes, tes options, tes captures
-  d’écran, tes packs de ressources et les réglages du profil ;
+  d’écran, tes packs de ressources, les mods que tu as activés ou désactivés et les réglages du profil (et tes
+  configurations modifiées, si le publieur l’a choisi) ;
 - elle indique quelle version de chaque modpack se trouve déjà dans ton CurseForge, même si tu l’as installée
   autrement.
 
 **Pour les auteurs de modpacks**, le Studio range les zips de chaque mise à jour, les numérote, et met les releases
-GitHub en accord avec le dossier en quelques clics : nouvelle version, notes, image, suppression.
+GitHub en accord avec le dossier en quelques clics : nouvelle version, notes, image, suppression. Ses réglages
+décident de ce que reçoivent les joueurs : fichiers jamais publiés, mods livrés désactivés, configurations gardées.
 
 ## Deux rôles
 

@@ -2,10 +2,14 @@ import { create } from 'zustand'
 import type { ActionResult, StudioOverview } from '../../../shared/studio'
 import type { ToastItem } from '../components/Toasts'
 import { useStore } from '../store'
+import type { SettingsTab } from './PackSettingsDialog'
 
 export type Dialog =
   | { kind: 'new-pack' }
   | { kind: 'pack-info'; folder: string }
+  | { kind: 'pack-settings'; folder: string; tab?: SettingsTab }
+  /** Retirer d'un zip les fichiers exclus dans les réglages ; `label` comme pour « contents ». */
+  | { kind: 'strip'; folder: string; fileName: string; label: string }
   | { kind: 'notes'; folder: string; version: number }
   | { kind: 'import'; folder: string }
   | { kind: 'ranger' }

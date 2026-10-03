@@ -27,7 +27,9 @@ Un zip accepté peut porter des **avertissements**, affichés sous sa ligne :
   rarement sinon ;
 - **dossiers inutiles** (`logs`, `crash-reports`, `screenshots`, `backups`) : ils alourdissent le zip sans rien
   apporter aux joueurs ;
-- **aucun mod** dans le dossier `mods`.
+- **aucun mod** dans le dossier `mods` ;
+- **fichiers exclus** dans les réglages du modpack, pour un zip à ranger ou une version pas encore publiée :
+  **Retirer du zip** les enlève (voir [Un zip qui contient des fichiers exclus](reglages.md#un-zip-qui-contient-des-fichiers-exclus)).
 
 ## Créer la version depuis CurseForge
 
@@ -47,7 +49,9 @@ Le zip est créé directement dans le dossier du modpack, déjà numéroté : pa
 - `screenshots`, `logs`, `crash-reports`, `backups`, `local`, `downloads`, `.mixin.out` ;
 - les données des cartes JourneyMap (`journeymap/data`) et Xaero’s (`xaero`, `xaerowaypoints`, `xaeroworldmap`) ;
 - `usercache.json`, `usernamecache.json`, `command_history.txt` ;
-- les fichiers propres à Modpack Downloader (`.modpack-downloader.json`, image du profil).
+- les fichiers propres à Modpack Downloader (`.modpack-downloader.json`, image du profil) ;
+- les fichiers que tu as exclus dans les [réglages du modpack](reglages.md#exclure-des-fichiers) (tes options du jeu,
+  tes shaders…) : la fenêtre les rappelle sous la liste des profils, avec un lien vers **Réglages des versions**.
 
 Un zip de plus de 2 Go est refusé : retire alors des fichiers lourds du profil (shaders, packs de ressources…).
 
@@ -135,11 +139,12 @@ Le bouton **Contenu**, sur une version comme sur un zip à ranger, ouvre le zip 
 sous-titre indique la place qu’il occupera une fois installé.
 
 - **Mods** : chaque mod sous le nom que lui donne CurseForge, avec son auteur, son fichier, sa taille et un lien vers
-  sa page CurseForge. Un mod **ajouté à la main** (inconnu de CurseForge) et un mod **désactivé** dans CurseForge
-  sont signalés.
+  sa page CurseForge. Un mod **ajouté à la main** (inconnu de CurseForge), un mod **désactivé** dans CurseForge et un
+  mod **désactivé chez les joueurs** par les [réglages du modpack](reglages.md) sont signalés.
 - **Fichiers** : l’arborescence de l’instance, dossier par dossier, avec un fil d’Ariane pour remonter. Un clic sur
   un fichier affiche son contenu : un fichier de configuration ou un script (son début seulement s’il est long), ou
-  une image (textures, icônes). Les fichiers binaires (mods, mondes, sons) ne sont pas affichés.
+  une image (textures, icônes). Les fichiers binaires (mods, mondes, sons) ne sont pas affichés. Un fichier ou un
+  dossier exclu dans les réglages porte la mention **Exclu**.
 
 Le champ de recherche filtre les mods, ou cherche un fichier dans tout le zip.
 

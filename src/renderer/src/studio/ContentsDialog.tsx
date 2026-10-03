@@ -1,64 +1,37 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { LucideIcon } from 'lucide-react'
-import { ChevronRight, ExternalLink, File, FileImage, FileText, Folder, Package, Search } from 'lucide-react'
-import type { ZipContents, ZipEntryPreview, ZipFileEntry, ZipMod } from '../../../shared/studio'
+import { ChevronRight, ExternalLink, Folder, Package, Search } from 'lucide-react'
+import { exclusionMatcher } from '../../../shared/exclusions'
+import {
+  DEFAULT_PACK_SETTINGS,
+  matchesDisabledMod,
+  type PackSettings,
+  type ZipContents,
+  type ZipEntryPreview,
+  type ZipFileEntry,
+  type ZipMod
+} from '../../../shared/studio'
 import { IconButton } from '../components/Button'
 import { formatBytes } from '../lib/format'
+import { baseName, buildTree, byName, fileIcon, findFolder } from './fileTree'
 import { Modal, Spinner } from './Modal'
 import { errorMessage, openLink, useStudio } from './store'
 
 /** Résultats affichés au plus pour une recherche dans les fichiers. */
 const MAX_MATCHES = 400
 
-interface FolderNode {
-  name: string
-  path: string
-  folders: FolderNode[]
-  files: ZipFileEntry[]
-  size: number
-  count: number
-}
-
-const byName = (a: string, b: string) => a.localeCompare(b, 'fr', { sensitivity: 'base', numeric: true })
-
-function buildTree(files: ZipFileEntry[]): FolderNode {
-  type Draft = Omit<FolderNode, 'folders'> & { folders: Map<string, Draft> }
-  const draft = (name: string, path: string): Draft => ({ name, path, folders: new Map(), files: [], size: 0, count: 0 })
-  const root = draft('', '')
-  for (const file of files) {
-    const parts = file.path.split('/')
-    let node = root
-    node.size += file.size
-    node.count++
-    for (const part of parts.slice(0, -1)) {
-      let child = node.folders.get(part)
-      if (!child) node.folders.set(part, (child = draft(part, node.path ? `${node.path}/${part}` : part)))
-      child.size += file.size
-      child.count++
-      node = child
-    }
-    node.files.push(file)
-  }
-  const finish = (node: Draft): FolderNode => ({
-    ...node,
-    folders: [...node.folders.values()].sort((a, b) => byName(a.name, b.name)).map(finish),
-    files: node.files.sort((a, b) => byName(a.path, b.path))
-  })
-  return finish(root)
-}
-
-function findFolder(root: FolderNode, path: string): FolderNode | null {
-  let node: FolderNode | undefined = root
-  for (const part of path ? path.split('/') : []) node = node?.folders.find((f) => f.name === part)
-  return node ?? null
-}
-
-const baseName = (path: string) => path.slice(path.lastIndexOf('/') + 1)
-
-function fileIcon(path: string): LucideIcon {
-  if (/\.(png|jpe?g|gif|webp)$/i.test(path)) return FileImage
-  if (/\.(jar|zip|class|dat|nbt|mca|ogg|bin)$/i.test(path)) return File
-  return FileText
+/** Petite étiquette posée au bout d'une ligne (mod désactivé, fichier exclu…). */
+export function Tag({ children, tone = 'muted', title }: { children: string; tone?: 'muted' | 'sky' | 'amber'; title?: string }) {
+  const styles = {
+    muted: 'bg-white/[0.06] text-ink-300',
+    sky: 'bg-sky-400/15 text-sky-300',
+    amber: 'bg-amber-glow/15 text-amber-glow'
+  }[tone]
+  return (
+    <span title={title} className={`shrink-0 rounded-md px-1.5 py-0.5 text-[10px] font-bold tracking-wide uppercase ${styles}`}>
+      {children}
+    </span>
+  )
 }
 
 function ListRow({
@@ -67,6 +40,7 @@ function ListRow({
   detail,
   active = false,
   mono = false,
+  excluded = null,
   onClick
 }: {
   icon: LucideIcon
@@ -74,6 +48,8 @@ function ListRow({
   detail: string
   active?: boolean
   mono?: boolean
+  /** Chemin exclu dans les réglages qui écarte cette ligne des prochaines versions. */
+  excluded?: string | null
   onClick(): void
 }) {
   return (
@@ -82,11 +58,16 @@ function ListRow({
       onClick={onClick}
       title={label}
       className={`flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition ${
-        active ? 'bg-grass-400/10 text-grass-300' : 'text-ink-200 hover:bg-white/[0.05]'
+        active ? 'bg-grass-400/10 text-grass-300' : `${excluded ? 'text-ink-400' : 'text-ink-200'} hover:bg-white/[0.05]`
       }`}
     >
       <Icon size={15} className={`shrink-0 ${active ? '' : 'text-ink-500'}`} />
       <span className={`min-w-0 flex-1 truncate ${mono ? 'font-mono text-xs' : ''}`}>{label}</span>
+      {excluded && (
+        <Tag tone="amber" title={`Exclu des prochaines versions par « ${excluded} » (réglages du modpack)`}>
+          Exclu
+        </Tag>
+      )}
       <span className="shrink-0 text-xs text-ink-400 tabular-nums">{detail}</span>
     </button>
   )
@@ -94,7 +75,12 @@ function ListRow({
 
 const panel = 'rounded-2xl bg-ink-950/40 ring-1 ring-inset ring-white/[0.06]'
 
-function ModsList({ mods, query }: { mods: ZipMod[]; query: string }) {
+/** Mod d'un zip que les joueurs reçoivent désactivé à cause des réglages du modpack. */
+export const disabledForPlayers = (mod: ZipMod, settings: PackSettings) =>
+  !mod.disabled &&
+  settings.disabledMods.some((entry) => matchesDisabledMod({ addonId: mod.addonId, file: mod.fileName }, entry))
+
+function ModsList({ mods, query, settings }: { mods: ZipMod[]; query: string; settings: PackSettings }) {
   const sorted = useMemo(() => [...mods].sort((a, b) => byName(a.name ?? a.fileName, b.name ?? b.fileName)), [mods])
   // Sans aucun nom connu, minecraftinstance.json ne liste pas ses mods : on ne peut rien dire de leur origine.
   const named = mods.some((mod) => mod.name)
@@ -118,10 +104,11 @@ function ModsList({ mods, query }: { mods: ZipMod[]; query: string }) {
                   : ''}
             </p>
           </div>
-          {mod.disabled && (
-            <span className="shrink-0 rounded-md bg-white/[0.06] px-1.5 py-0.5 text-[10px] font-bold tracking-wide text-ink-300 uppercase">
-              Désactivé
-            </span>
+          {mod.disabled && <Tag>Désactivé</Tag>}
+          {disabledForPlayers(mod, settings) && (
+            <Tag tone="sky" title="Installé désactivé chez les joueurs (réglages du modpack) : ils peuvent l’activer dans CurseForge.">
+              Désactivé chez les joueurs
+            </Tag>
           )}
           <span className="w-16 shrink-0 text-right text-xs text-ink-400 tabular-nums">{formatBytes(mod.size)}</span>
           {mod.url ? (
@@ -202,8 +189,21 @@ function Preview({ folder, fileName, file }: { folder: string; fileName: string;
   )
 }
 
-function FilesBrowser({ folder, fileName, contents, query }: { folder: string; fileName: string; contents: ZipContents; query: string }) {
+function FilesBrowser({
+  folder,
+  fileName,
+  contents,
+  query,
+  exclude
+}: {
+  folder: string
+  fileName: string
+  contents: ZipContents
+  query: string
+  exclude: string[]
+}) {
   const tree = useMemo(() => buildTree(contents.files), [contents])
+  const isExcluded = useMemo(() => exclusionMatcher(exclude), [exclude])
   const [cwd, setCwd] = useState('')
   const [selected, setSelected] = useState<ZipFileEntry | null>(null)
   const node = findFolder(tree, cwd) ?? tree
@@ -244,6 +244,7 @@ function FilesBrowser({ folder, fileName, contents, query }: { folder: string; f
                   label={file.path}
                   detail={formatBytes(file.size)}
                   mono
+                  excluded={isExcluded(file.path)}
                   active={selected?.path === file.path}
                   onClick={() => setSelected(file)}
                 />
@@ -255,6 +256,7 @@ function FilesBrowser({ folder, fileName, contents, query }: { folder: string; f
                     icon={Folder}
                     label={child.name}
                     detail={`${child.count} fichier${child.count > 1 ? 's' : ''} · ${formatBytes(child.size)}`}
+                    excluded={isExcluded(child.path)}
                     onClick={() => setCwd(child.path)}
                   />
                 )),
@@ -264,6 +266,7 @@ function FilesBrowser({ folder, fileName, contents, query }: { folder: string; f
                     icon={fileIcon(file.path)}
                     label={baseName(file.path)}
                     detail={formatBytes(file.size)}
+                    excluded={isExcluded(file.path)}
                     active={selected?.path === file.path}
                     onClick={() => setSelected(file)}
                   />
@@ -282,7 +285,9 @@ type Tab = 'mods' | 'files'
 /** Contenu d'un zip de modpack, sans passer par l'Explorateur : ses mods, ses fichiers et leur aperçu. */
 export function ContentsDialog({ folder, fileName, label }: { folder: string; fileName: string; label: string }) {
   const close = useStudio((s) => s.closeDialog)
-  const packName = useStudio((s) => s.overview?.packs.find((p) => p.folder === folder)?.name ?? folder)
+  const pack = useStudio((s) => s.overview?.packs.find((p) => p.folder === folder) ?? null)
+  const packName = pack?.name ?? folder
+  const settings = pack?.settings ?? DEFAULT_PACK_SETTINGS
   const [contents, setContents] = useState<ZipContents | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [tab, setTab] = useState<Tab>('mods')
@@ -365,9 +370,9 @@ export function ContentsDialog({ folder, fileName, label }: { folder: string; fi
             </div>
             <div className="mt-4 min-h-0 flex-1">
               {tab === 'mods' ? (
-                <ModsList mods={contents.mods} query={query} />
+                <ModsList mods={contents.mods} query={query} settings={settings} />
               ) : (
-                <FilesBrowser folder={folder} fileName={fileName} contents={contents} query={query} />
+                <FilesBrowser folder={folder} fileName={fileName} contents={contents} query={query} exclude={settings.exclude} />
               )}
             </div>
           </>

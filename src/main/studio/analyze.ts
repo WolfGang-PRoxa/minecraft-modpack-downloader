@@ -5,8 +5,24 @@ import type { Entry, ZipFile } from 'yauzl'
 import { CURSEFORGE_INSTANCE_FILE } from '../../shared/config'
 import type { ZipAnalysis } from '../../shared/studio'
 import { readJson, writeJsonAtomic } from '../fsutil'
+import { addonsByFile, MOD_PATH } from '../instanceAddons'
 import { isModJar, modsSignature } from '../modsSignature'
 import { findRootPrefix, openEntry, openZip, readEntries } from '../zip'
+
+/** Mod d'un zip, tel que le studio le retient pour la publication (mods désactivés chez les joueurs). */
+export interface AnalyzedMod {
+  /** Fichier du dossier mods, sans `.disabled`. */
+  file: string
+  addonId: number | null
+  name: string | null
+  /** Déjà désactivé dans le profil d'où vient le zip (`.jar.disabled`). */
+  disabled: boolean
+}
+
+/** Analyse gardée par le studio : celle affichée, plus les mods du zip. */
+export interface CachedAnalysis extends ZipAnalysis {
+  mods: AnalyzedMod[]
+}
 
 /** Limite de GitHub pour un fichier de release. */
 export const MAX_ASSET_SIZE = 2 * 1024 ** 3 - 1
@@ -43,7 +59,7 @@ export async function sha256File(file: string): Promise<string> {
  * Vérifie qu'un zip contient bien une instance CurseForge et en extrait les infos affichées aux joueurs.
  * Le calcul de l'empreinte ne se fait qu'une fois le contenu validé.
  */
-export async function analyzeZip(file: string, size: number): Promise<ZipAnalysis> {
+export async function analyzeZip(file: string, size: number): Promise<CachedAnalysis> {
   if (size > MAX_ASSET_SIZE) {
     throw new StudioError('Zip de plus de 2 Go : GitHub refuse les fichiers de cette taille.')
   }
@@ -55,12 +71,13 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
   } catch {
     throw new StudioError('Zip illisible ou incomplet (copie encore en cours ?).')
   }
-  const info: Omit<ZipAnalysis, 'sha256'> = {
+  const info: Omit<CachedAnalysis, 'sha256'> = {
     minecraftVersion: null,
     modLoader: null,
     modCount: null,
     modsSignature: null,
-    warnings: []
+    warnings: [],
+    mods: []
   }
   try {
     try {
@@ -100,6 +117,13 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
       .map((f) => ({ name: f.name.slice('mods/'.length), size: f.size }))
     info.modCount = mods.length
     info.modsSignature = modsSignature(mods)
+    const addons = addonsByFile(instance)
+    for (const { name } of files) {
+      const match = MOD_PATH.exec(name)
+      if (!match) continue
+      const known = addons.get(match[1].toLowerCase())
+      info.mods.push({ file: match[1], addonId: known?.addonId ?? null, name: known?.name ?? null, disabled: Boolean(match[2]) })
+    }
 
     const worlds = new Set(names.map((n) => /^saves\/([^/]+)\//i.exec(n)?.[1]).filter(Boolean))
     if (worlds.size > 0) {
@@ -119,10 +143,10 @@ export async function analyzeZip(file: string, size: number): Promise<ZipAnalysi
   return { ...info, sha256: await sha256File(file) }
 }
 
-// Version 2 : l'analyse contient l'empreinte des mods.
+// Version 2 : l'analyse contient l'empreinte des mods. Version 3 : la liste des mods, avec leur projet CurseForge.
 interface CacheFile {
-  version: 2
-  entries: Record<string, ZipAnalysis>
+  version: 3
+  entries: Record<string, CachedAnalysis>
 }
 
 /**
@@ -137,13 +161,13 @@ export class AnalysisCache {
 
   private constructor(
     private readonly file: string,
-    private entries: Record<string, ZipAnalysis>
+    private entries: Record<string, CachedAnalysis>
   ) {}
 
   static async load(workspaceDir: string): Promise<AnalysisCache> {
     const file = join(workspaceDir, AnalysisCache.FILE_NAME)
     const data = await readJson<CacheFile>(file)
-    return new AnalysisCache(file, data?.version === 2 && data.entries ? data.entries : {})
+    return new AnalysisCache(file, data?.version === 3 && data.entries ? data.entries : {})
   }
 
   static key(folder: string, size: number, mtimeMs: number): string {
@@ -154,12 +178,12 @@ export class AnalysisCache {
     this.used.clear()
   }
 
-  get(key: string): ZipAnalysis | null {
+  get(key: string): CachedAnalysis | null {
     this.used.add(key)
     return this.entries[key] ?? null
   }
 
-  set(key: string, analysis: ZipAnalysis): void {
+  set(key: string, analysis: CachedAnalysis): void {
     this.used.add(key)
     this.entries[key] = analysis
     this.dirty = true
@@ -175,6 +199,6 @@ export class AnalysisCache {
     }
     if (!this.dirty) return
     this.dirty = false
-    await writeJsonAtomic(this.file, { version: 2, entries: this.entries } satisfies CacheFile).catch(() => {})
+    await writeJsonAtomic(this.file, { version: 3, entries: this.entries } satisfies CacheFile).catch(() => {})
   }
 }

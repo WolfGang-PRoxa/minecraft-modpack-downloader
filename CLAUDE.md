@@ -53,6 +53,14 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
     (`PLAYER_DATA`) et ses champs de `minecraftinstance.json` (`PRESERVED_INSTANCE_FIELDS`). `minecraftinstance.json`
     n'entre dans l'instance qu'une fois le dossier en place, puis il est réécrit (`placeInstanceFile`) : voir « Faits
     CurseForge ». `InstallResult.curseForgeRunning` fait proposer « Relancer CurseForge » au lieu de l'ouvrir.
+    Les choix du joueur passent ensuite par `playerChoices.ts` : à l'installation, le marqueur note ce que fournit la
+    version (`configFiles` : SHA-1 de chaque fichier de `config/` ; `disabledByDefault` : mods installés désactivés,
+    clés de `modKey`) ; à la mise à jour, ce qui s'en écarte vient du joueur. `carryOverConfigs` (seulement si
+    `keepPlayerConfigs`) garde ses fichiers de config modifiés (marqueur sans empreintes : date du fichier après
+    `installedAt`) ; `applyModStates` désactive les mods demandés par le publieur (`disabledMods`) puis rend à chaque
+    mod l'état que le joueur lui avait donné. `InstallResult.keptConfigs` est annoncé dans la notification.
+  - `playerChoices.ts` et `instanceAddons.ts` (Node pur, testables avec tsx) : reprise des choix du joueur ; lecture
+    et écriture de l'état des mods dans `installedAddons` (projet CurseForge par fichier, `setAddonEnabled`).
   - `curseforge.ts` : détection (protocole `curseforge://` dans `HKCR`, puis chemins connus Overwolf/autonome),
     lancement, dossier `Instances` (réglage > logs CurseForge > défaut), détection de Minecraft lancé, relance
     (`restartCurseForge`, canal `curseforge:restart` : ses processus fermés poliment puis de force, jamais Overwolf,
@@ -85,16 +93,26 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   - `zip.ts` (yauzl, protection zip-slip, accepte un zip avec dossier racine), `download.ts`, `ipc.ts`.
 - `src/main/studio/` — la vue Studio. Tout est Node pur (réutilisé par `scripts/modpacks.ts`) sauf `ipc.ts`
   (canaux `studio:*`, images via `studio-media://cover/`, surveillance du dossier des modpacks).
-  - `workspace.ts` : lecture du dossier (un sous-dossier par modpack, `pack.json`, `cover.*`), rangement (`planRanger`/`applyRanger`).
+  - `workspace.ts` : lecture du dossier (un sous-dossier par modpack, `pack.json`, `cover.*`), rangement
+    (`planRanger`/`applyRanger`). `pack.json` porte aussi les réglages des versions (`exclude`, `disabledMods`,
+    `keepPlayerConfigs`, écrits seulement s'ils servent ; `normalizePackSettings`).
   - `analyze.ts` : validation d'un zip (instance CurseForge, refus des exports `manifest.json`), SHA-256, empreinte
-    des mods, cache `.studio-cache.json` (son numéro de `version` change quand `ZipAnalysis` gagne un champ).
-  - `sync.ts` : `computePlan` (dossier ↔ releases `pack-*` : create / update / delete) et `applyPlan`.
+    des mods, liste des mods avec leur projet CurseForge (`CachedAnalysis.mods`, gardée dans le processus principal),
+    cache `.studio-cache.json` (son numéro de `version` change quand l'analyse gagne un champ : 3 aujourd'hui).
+  - `sync.ts` : `computePlan` (dossier ↔ releases `pack-*` : create / update / delete) et `applyPlan`. Le
+    `modpack.json` de chaque version reçoit `disabledMods` (fichiers de cette version, résolus par `disabledFilesOf`
+    d'après le projet CurseForge ou le nom du fichier) et `keepPlayerConfigs`, absents quand ils ne servent pas : les
+    releases existantes ne sont pas renvoyées pour rien (`comparable` : absent = vide = faux).
   - `contents.ts` : contenu d'un zip pour la fenêtre « Contenu » (`ContentsDialog`) : fichiers depuis le dossier de
     l'instance, mods nommés d'après `installedAddons` de `minecraftinstance.json`, aperçu d'un fichier (texte coupé à
     256 Ko, image en `data:`, rien pour un binaire). Le service n'ouvre que des zips du dossier des modpacks.
   - `githubApi.ts` : client d'écriture (dépôt configuré), envois en streaming.
-  - `archive.ts` : zip d'une instance (`DEFAULT_EXCLUDES`), `service.ts` : orchestration + verrou d'exclusivité,
-    `settings.ts` : dossier des modpacks (repris une fois de l'ancien `%APPDATA%\Modpack Studio\studio-settings.json`).
+  - `archive.ts` : zip d'une instance (`DEFAULT_EXCLUSIONS` + exclusions du modpack), fichiers exclus trouvés dans
+    un zip (`findExcludedInZip`) et réécriture sans eux (`stripExcludedFromZip`, une entrée à la fois),
+    `service.ts` : orchestration + verrou d'exclusivité ; les zips qui partiront à la prochaine publication sont
+    cherchés pour des fichiers exclus (`findExcluded`, mémorisé) : avertissement sur la ligne et dans le plan
+    (`annotatePlan`). `settings.ts` : dossier des modpacks (repris une fois de l'ancien
+    `%APPDATA%\Modpack Studio\studio-settings.json`).
 - `src/preload/index.ts` — un seul preload : `window.api` (`RendererApi`) et `window.studio` (`StudioApi`,
   `src/shared/studio.ts`).
 - `src/renderer/` — React 19 + Tailwind v4 + zustand, une seule page (`index.html`). `store.ts` : état de l'app,
@@ -110,6 +128,11 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   `PackBadges` affiche « Version sur CurseForge : vN », `CurseForgeNote` la phrase du studio.
   `components/ReportDialog.tsx` : formulaire « Signaler un problème » (bouton de `TitleBar` et de Paramètres → À
   propos), remonté à chaque ouverture.
+  `studio/PackSettingsDialog.tsx` : « Réglages des versions » d'un modpack (onglets Fichiers exclus : arborescence du
+  zip le plus récent à cocher ; Mods désactivés ; Configurations des joueurs), et `StripDialog` (« Retirer du zip »).
+  Le bouton **Réglages** et les pastilles de `SettingsSummary` de `PackCard` l'ouvrent. `studio/fileTree.ts` :
+  arborescence d'un zip, partagée avec `ContentsDialog` (mentions « Exclu » et « Désactivé chez les joueurs »).
+  `components/Toggle.tsx` : interrupteur partagé.
   `src/docs/` : l'aide intégrée (bouton Aide de `TitleBar`, `F1`). `content.ts` embarque `docs/*.md` et
   `CHANGELOG.md` à la compilation (`import.meta.glob` / `?raw`, hors de la racine du renderer) ; le sommaire
   `docs/README.md` fixe les pages, leurs groupes et leur ordre. `DocsCenter` couvre la zone de contenu (`z-[45]`,
@@ -123,6 +146,9 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   `presence.ts` : `findPresentVersions` — un profil installé par l'app est reconnu à son marqueur, les autres à
   l'empreinte de leurs mods (à égalité entre versions d'un même modpack, la plus récente).
   `report.ts` : types de signalement, validation et corps de l'issue (`reportBody`).
+  `exclusions.ts` : fichiers exclus des versions (chemins depuis la racine de l'instance, un dossier exclut son
+  contenu, jokers `*`, `?` et `**/`, casse ignorée) ; `DEFAULT_EXCLUSIONS`, données propres à la partie du publieur.
+  `studio.ts` : types du Studio, et `matchesDisabledMod` (même règle pour le Studio et la fenêtre).
   `docs.ts` : sommaire, titres et ancres calculées comme GitHub, liens (`resolveRepoPath`, chemins depuis la racine).
   `changelog.ts` : lecture et vérification de `CHANGELOG.md` (Keep a Changelog en français), notes d'une version,
   lecture des notes d'une release GitHub (`parseReleaseNotes` : tout ce qui précède le premier `---`).
@@ -189,17 +215,23 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   étapes `delete` du plan correspondant sont appliquées (`applyPlan`).
   Seule exception : un modpack ou une version en erreur n'est jamais touché sur GitHub.
 - Zip rangé : `<Dossier>-v<N>.zip` (N entier). `pack.json` garde l'`id` (figé), le nom, la description, les notes
-  par version et `lastVersion` : un numéro n'est jamais réutilisé.
+  par version et `lastVersion` : un numéro n'est jamais réutilisé. Il garde aussi les réglages des versions : les
+  exclusions s'appliquent aux zips créés ensuite depuis CurseForge (ou nettoyés avec « Retirer du zip »), jamais à
+  un zip déjà publié ; les mods désactivés et `keepPlayerConfigs` passent par le `modpack.json` de toutes les versions.
 - Release de modpack : tag `pack-<id>-v<N>`, titre `<nom> v<N>`, fichiers `<id>-<N>.zip` (contenu du dossier
   d'instance, `minecraftinstance.json` à la racine), `modpack.json` (schéma `ModpackManifest`, `author` = propriétaire
-  du dépôt, avec `coverSha256` et `modsSignature`),
+  du dépôt, avec `coverSha256`, `modsSignature`, et si besoin `disabledMods` et `keepPlayerConfigs`),
   `cover.(png|jpg|jpeg|webp)` optionnel. Toujours `make_latest: false` (la « latest » reste l'installeur de l'app).
   Un champ ajouté à `MANIFEST_FIELDS` fait renvoyer le `modpack.json` des releases existantes (sans le zip) à la
-  publication suivante : c'est ainsi qu'elles reçoivent `modsSignature`.
+  publication suivante : c'est ainsi qu'elles ont reçu `modsSignature`. Un champ facultatif ne doit être écrit que
+  s'il sert, sinon toutes les releases repartent.
+- Le zip publié est celui du publieur : un mod désactivé chez les joueurs y reste actif (le joueur le reçoit
+  désactivé par son installeur). L'empreinte des mods du zip reste donc celle du profil du publieur, qui est reconnu.
 - Release de l'app : tag `app-v<version>` = version de `package.json`, avec l'installeur `.exe`. Préparer la version
   avec `npm run changelog -- --version <version>` ; le texte de la release (notes, `---`, mode d'emploi) est relu par
   les apps installées pour présenter la mise à jour.
-- Chaque instance installée contient `.modpack-downloader.json` (id, version, `managedEntries`) : c'est la source
+- Chaque instance installée contient `.modpack-downloader.json` (id, version, `managedEntries`, et depuis la 1.0.5
+  `configFiles` et `disabledByDefault`, que `listInstalled` ne transmet pas à la fenêtre) : c'est la source
   de vérité pour savoir ce qui est installé, et la seule qui autorise une mise à jour sur place. Un profil sans
   marqueur reconnu à ses mods (profil d'origine du publieur, zip importé à la main) est seulement signalé : l'app
   n'y écrit jamais, « Installer » crée un profil à part.
@@ -217,6 +249,11 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   (d'après les fiches de processus publiées en ligne, pas encore observé sur un PC).
 - Lancer CurseForge alors qu'il tourne déjà remet simplement sa fenêtre au premier plan.
 - UID Overwolf de CurseForge : `cchhcaiapeikjbdbpfplgmpobbcdkdaphclbmkbj`.
+- Mod désactivé (constaté sur les profils du PC du propriétaire) : fichier `x.jar.disabled` dans `mods` ; dans
+  `installedAddons`, l'entrée du mod a `isEnabled: false`, et son `fileNameOnDisk` et ses `filePaths` prennent
+  `.disabled` ; `installedFile.fileName` et `installedFile.fileNameOnDisk` gardent le nom d'origine. Le projet
+  CurseForge d'un mod est `addonID`. Un profil peut contenir un `.jar.disabled` dont l'entrée dit encore
+  `isEnabled: true` (vu sur un profil) : `readModStates` se fie au nom du fichier.
 
 ## Pièges connus
 
@@ -290,3 +327,13 @@ npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp
   packagée ignorant `MPD_GITHUB_API`, compiler l'ancienne avec `setGitHubApiOverride(process.env.MPD_GITHUB_API)`
   le temps du build (à retirer aussitôt, ne jamais committer). Ne jamais cliquer « Mettre à jour » dans une app de
   test branchée sur le vrai GitHub : elle lancerait le vrai installeur, qui remplace l'installation réelle.
+- Tests de la logique hors du dépôt avec tsx : un fichier `.mts` (await au premier niveau), qui importe les sources
+  par `file:///C:/…/src/….ts`. `playerChoices.ts`, `instanceAddons.ts`, `archive.ts`, `sync.ts` et `service.ts` se
+  testent ainsi sur des dossiers temporaires ; `installer.ts` (Electron) se teste dans l'app, avec Playwright.
+- Tester les réglages des versions de bout en bout : app compilée (`out/`), `--user-data-dir`, réglages publieur avec
+  `instancesDir` de test (le profil source du publieur y est aussi), faux GitHub en écriture, `GITHUB_TOKEN=x`,
+  `APPDATA` isolé ; Studio (créer, régler, publier) puis Bibliothèque (installer, simuler les choix du joueur dans le
+  profil, mettre à jour). Attendre un élément de la fenêtre de dialogue, pas un texte de la page : le nom d'un profil
+  figure aussi sur la carte du modpack.
+- archiver : `append(flux)` branche aussitôt la source sur un PassThrough. Pour recopier un zip entrée par entrée,
+  ajouter une entrée à la fois (attendre l'événement `entry`), sinon tous les flux du zip source s'ouvrent ensemble.

@@ -56,6 +56,8 @@ Ce qui se passe pendant l’installation :
 - le profil prend le nom du modpack (« Hardcore Endgame (2) » si un dossier porte déjà ce nom), et les chemins de
   son fichier `minecraftinstance.json` sont adaptés à ton PC ;
 - l’image du modpack devient l’image du profil dans CurseForge ;
+- les mods que le publieur propose en option sont installés **désactivés** : CurseForge les affiche dans le profil,
+  active ceux que tu veux d’un clic ;
 - un petit fichier `.modpack-downloader.json` est ajouté au profil : c’est ce qui permet à l’application de le
   reconnaître et de le mettre à jour plus tard.
 
@@ -72,16 +74,25 @@ CurseForge : tu retrouves tes mondes et tes réglages.
 
 | Ce qui est conservé tel quel | Ce qui est fusionné | Ce qui est remplacé |
 |---|---|---|
-| Options du jeu (`options.txt`, `optionsof.txt`, `optionsshaders.txt`), serveurs (`servers.dat`), historique des commandes, journaux (`logs`, `crash-reports`), cartes JourneyMap et Xaero’s, dossier `local` | **Tes mondes** (`saves`), captures d’écran, schémas et sauvegardes (`backups`) : rien n’est perdu, ta version l’emporte en cas de doublon. Packs de ressources et de shaders : tes ajouts restent, ceux du modpack l’emportent en cas de doublon. | Tout le reste de ce que fournit le modpack : mods, configurations, scripts… |
+| Options du jeu (`options.txt`, `optionsof.txt`, `optionsshaders.txt`), serveurs (`servers.dat`), historique des commandes, journaux (`logs`, `crash-reports`), cartes JourneyMap et Xaero’s, dossier `local`, et l’état des mods que tu as activés ou désactivés dans CurseForge | **Tes mondes** (`saves`), captures d’écran, schémas et sauvegardes (`backups`) : rien n’est perdu, ta version l’emporte en cas de doublon. Packs de ressources et de shaders : tes ajouts restent, ceux du modpack l’emportent en cas de doublon. Configurations, si le publieur l’a choisi : voir plus bas. | Tout le reste de ce que fournit le modpack : mods, configurations, scripts… |
 
 Les réglages du profil sont conservés eux aussi : mémoire allouée, arguments Java, nombre de parties, date de
 dernière partie et image du profil. Les fichiers et dossiers que tu as ajoutés toi-même à la racine du profil
 restent en place ; ceux que l’ancienne version du modpack fournissait et que la nouvelle n’a plus sont retirés.
 
+**Les mods activés ou désactivés** : un mod que tu as activé ou désactivé dans CurseForge garde ton choix dans la
+nouvelle version, même quand son fichier change. Un mod dont tu n’as pas changé l’état suit le choix du publieur.
+
+**Les configurations** : si le publieur a choisi de garder les configurations modifiées par les joueurs, un fichier
+du dossier `config` que tu as modifié est gardé tel quel ; les autres suivent la nouvelle version. La notification de
+mise à jour dit combien de fichiers ont été gardés. Sinon, le dossier `config` est remplacé comme les autres (voir
+[Garder les configurations des joueurs](reglages.md#garder-les-configurations-des-joueurs)).
+
 > [!WARNING]
-> Un dossier fourni par le modpack, comme `mods` ou `config`, est remplacé **en entier** par celui de la nouvelle
-> version : un mod ajouté à la main dans `mods`, ou une configuration modifiée, ne survit pas à la mise à jour.
-> Garde une copie de ce que tu as changé, ou demande au publieur de l’intégrer au modpack.
+> Un dossier fourni par le modpack, comme `mods`, est remplacé **en entier** par celui de la nouvelle version : un
+> mod ajouté à la main dans `mods` ne survit pas à la mise à jour, pas plus qu’une configuration modifiée quand le
+> publieur n’a pas choisi de les garder. Garde une copie de ce que tu as changé, ou demande au publieur de l’intégrer
+> au modpack.
 
 La mise à jour est sûre : l’ancienne version est mise de côté en un seul déplacement avant que la nouvelle prenne sa
 place. Si quelque chose échoue, rien n’est supprimé et le message indique le dossier où se trouvent tes fichiers.

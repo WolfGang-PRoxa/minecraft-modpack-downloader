@@ -1,9 +1,10 @@
 import { copyFile, mkdir, readdir, readFile, rm, stat } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
+import { normalizeExclusions } from '../../shared/exclusions'
 import { isValidModpackId, slugify } from '../../shared/releases'
-import type { RangerOrders, RangerPackPlan, RangerPlan, ZipAnalysis } from '../../shared/studio'
+import type { DisabledMod, PackSettings, RangerOrders, RangerPackPlan, RangerPlan } from '../../shared/studio'
 import { pathExists, renameWithRetry, writeJsonAtomic } from '../fsutil'
-import { AnalysisCache, analyzeZip, describeError, sha256File, StudioError } from './analyze'
+import { AnalysisCache, analyzeZip, describeError, sha256File, StudioError, type CachedAnalysis } from './analyze'
 
 /** Métadonnées d'un modpack, gérées par le studio dans son dossier. */
 export const PACK_FILE = 'pack.json'
@@ -12,7 +13,8 @@ export const COVER_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp']
 /** « Hardcore_Endgame-v12.zip » : un zip déjà rangé. */
 const NUMBERED_ZIP = /^(.*)-v(\d{1,6})\.zip$/i
 
-export interface PackFile {
+/** Contenu de pack.json. Les réglages des versions n'y figurent que s'ils sont utilisés. */
+export interface PackFile extends PackSettings {
   /** Identifiant publié (tags GitHub, suivi des installations) : ne change plus une fois créé. */
   id: string
   name: string
@@ -31,7 +33,7 @@ export interface LocalFile {
 }
 
 export interface LocalZip extends LocalFile {
-  analysis: ZipAnalysis | null
+  analysis: CachedAnalysis | null
   /** Zip inutilisable (pas une instance CurseForge, copie en cours…). */
   error: string | null
 }
@@ -90,7 +92,37 @@ function defaultPackFile(folder: string): PackFile {
     name,
     description: '',
     lastVersion: 0,
-    notes: {}
+    notes: {},
+    exclude: [],
+    disabledMods: [],
+    keepPlayerConfigs: false
+  }
+}
+
+/** Mods désactivés valides et dédoublonnés (un même projet CurseForge, ou un même fichier, une seule fois). */
+export function normalizeDisabledMods(value: unknown): DisabledMod[] {
+  if (!Array.isArray(value)) return []
+  const seen = new Set<string>()
+  const mods: DisabledMod[] = []
+  for (const item of value as Array<Record<string, unknown>>) {
+    const file = typeof item?.file === 'string' ? item.file.trim() : ''
+    if (!file || /[\\/]/.test(file)) continue
+    const addonId = Number.isInteger(item.addonId) && (item.addonId as number) > 0 ? (item.addonId as number) : null
+    const key = addonId !== null ? `addon:${addonId}` : `file:${file.toLowerCase()}`
+    if (seen.has(key)) continue
+    seen.add(key)
+    const name = typeof item.name === 'string' && item.name.trim() ? item.name.trim() : null
+    mods.push({ addonId, file, name })
+  }
+  return mods
+}
+
+/** Réglages des versions lus dans pack.json (ou reçus de la fenêtre), remis au propre. */
+export function normalizePackSettings(data: Partial<Record<keyof PackSettings, unknown>>): PackSettings {
+  return {
+    exclude: Array.isArray(data.exclude) ? normalizeExclusions(data.exclude.filter((e): e is string => typeof e === 'string')) : [],
+    disabledMods: normalizeDisabledMods(data.disabledMods),
+    keepPlayerConfigs: data.keepPlayerConfigs === true
   }
 }
 
@@ -116,7 +148,8 @@ async function readPackFile(
       name: typeof data.name === 'string' && data.name.trim() ? data.name.trim() : defaults.name,
       description: typeof data.description === 'string' ? data.description : '',
       lastVersion: Number.isInteger(data.lastVersion) && data.lastVersion! > 0 ? data.lastVersion! : 0,
-      notes
+      notes,
+      ...normalizePackSettings(data)
     }
     const error = isValidModpackId(meta.id)
       ? null
@@ -128,12 +161,19 @@ async function readPackFile(
 }
 
 export async function writePackFile(dir: string, meta: PackFile): Promise<void> {
+  const { exclude, disabledMods, keepPlayerConfigs, ...info } = meta
   const notes = Object.fromEntries(
     Object.entries(meta.notes)
       .filter(([, text]) => text.trim())
       .sort(([a], [b]) => Number(a) - Number(b))
   )
-  await writeJsonAtomic(join(dir, PACK_FILE), { ...meta, notes })
+  await writeJsonAtomic(join(dir, PACK_FILE), {
+    ...info,
+    notes,
+    ...(exclude.length ? { exclude } : {}),
+    ...(disabledMods.length ? { disabledMods } : {}),
+    ...(keepPlayerConfigs ? { keepPlayerConfigs } : {})
+  })
 }
 
 async function listFiles(dir: string): Promise<LocalFile[]> {
@@ -374,7 +414,7 @@ export async function createPack(workspace: LocalWorkspace, name: string): Promi
   for (let i = 2; taken.has(id); i++) id = `${base.slice(0, 60)}-${i}`
 
   await mkdir(dir, { recursive: true })
-  await writePackFile(dir, { id, name: display, description: '', lastVersion: 0, notes: {} })
+  await writePackFile(dir, { ...defaultPackFile(folder), id, name: display })
   return folder
 }
 

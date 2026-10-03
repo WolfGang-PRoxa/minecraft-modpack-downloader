@@ -29,6 +29,10 @@ Une empreinte calculée à partir du nom et de la taille des mods d’un profil 
 une version dans un profil que l’application n’a pas installé. Voir
 [L’empreinte des mods](fichiers.md#lempreinte-des-mods).
 
+**Exclusion**\
+Un fichier ou un dossier de l’instance que le publieur ne publie jamais, choisi dans les réglages du modpack. Voir
+[Exclure des fichiers](reglages.md#exclure-des-fichiers).
+
 **Identifiant** (d’un modpack)\
 Le nom technique d’un modpack (`hardcore-endgame`), utilisé dans les tags GitHub et dans les profils des joueurs. Il
 ne change jamais.
@@ -46,6 +50,11 @@ Une clé d’accès créée sur GitHub, qui permet à l’application de publier
 **Marqueur**\
 Le fichier `.modpack-downloader.json` que l’application dépose dans chaque profil qu’elle installe, pour le
 reconnaître et le mettre à jour.
+
+**Mod désactivé**\
+Un mod installé dans le profil mais que le jeu ne charge pas : son fichier finit par `.jar.disabled`. Le publieur peut
+livrer un mod désactivé, en option ; le joueur l’active dans CurseForge. Voir
+[Désactiver des mods chez les joueurs](reglages.md#désactiver-des-mods-chez-les-joueurs).
 
 **Mod loader**\
 Le chargeur de mods d’une instance : Forge, NeoForge, Fabric ou Quilt, avec sa version.
@@ -83,6 +92,10 @@ Donner un numéro de version aux zips déposés dans le dossier d’un modpack. 
 
 **Récepteur**\
 Le rôle des joueurs, par défaut : la Bibliothèque seule.
+
+**Réglages des versions**\
+Les choix d’un publieur pour un modpack : fichiers exclus, mods désactivés chez les joueurs, configurations gardées.
+Voir [Réglages des versions](reglages.md).
 
 **Release**\
 Une publication sur GitHub, rattachée à un tag, avec un texte et des fichiers. Chaque version d’un modpack est une

@@ -20,6 +20,8 @@ Cette documentation est aussi intégrée à l’application : bouton **Aide** de
 - [Devenir publieur](publieur.md) : le dépôt GitHub des modpacks et le compte qui publie.
 - [Le Studio](studio.md) : le dossier des modpacks et l’écran du Studio.
 - [Préparer une version](versions.md) : créer ou déposer un zip, le ranger, écrire ses notes, choisir l’image.
+- [Réglages des versions](reglages.md) : fichiers jamais publiés, mods désactivés chez les joueurs, configurations
+  gardées.
 - [Publier et supprimer](publication.md) : mettre les releases GitHub en accord avec le dossier.
 - [En ligne de commande](ligne-de-commande.md) : ranger et publier depuis un terminal.
 

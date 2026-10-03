@@ -3,7 +3,7 @@ import { watch, type FSWatcher } from 'node:fs'
 import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { pathToFileURL } from 'node:url'
-import type { ActionResult, PublishResult, RangerOrders } from '../../shared/studio'
+import type { ActionResult, PackSettings, PublishResult, RangerOrders } from '../../shared/studio'
 import { appUpdateTask } from '../appUpdate'
 import { resolveCredential } from '../auth'
 import { resolveInstancesDir } from '../curseforge'
@@ -140,6 +140,9 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
   ipcMain.handle('studio:updatePackInfo', (_e, folder: string, info: { name: string; description: string }) =>
     action(() => service.updatePackInfo(folder, info))
   )
+  ipcMain.handle('studio:updatePackSettings', (_e, folder: string, settings: PackSettings) =>
+    action(() => service.updatePackSettings(folder, settings))
+  )
   ipcMain.handle('studio:pickCover', (_e, folder: string) =>
     action(async () => {
       const options: Electron.OpenDialogOptions = {
@@ -196,23 +199,32 @@ export async function registerStudio(window: () => BrowserWindow | null): Promis
     const { dir } = await resolveInstancesDir(await getSettings())
     return { dir, instances: await listInstances(dir) }
   })
+  /** Progression d'une écriture de zip, envoyée au plus toutes les 120 ms. */
+  const zipProgress = () => {
+    let lastEmit = 0
+    return (done: number, total: number) => {
+      const now = Date.now()
+      if (now - lastEmit < 120 && done < total) return
+      lastEmit = now
+      send('studio:zip-progress', { done, total })
+    }
+  }
   ipcMain.handle('studio:zipInstance', async (_e, folder: string, instancePath: string, includeSaves: boolean) => {
     zipController = new AbortController()
-    let lastEmit = 0
     try {
-      const fileName = await service.zipInstance(
-        folder,
-        instancePath,
-        includeSaves,
-        (done, total) => {
-          const now = Date.now()
-          if (now - lastEmit < 120 && done < total) return
-          lastEmit = now
-          send('studio:zip-progress', { done, total })
-        },
-        zipController.signal
-      )
+      const fileName = await service.zipInstance(folder, instancePath, includeSaves, zipProgress(), zipController.signal)
       return { ok: true, fileName }
+    } catch (err) {
+      return { ok: false, error: describeError(err) }
+    } finally {
+      zipController = null
+    }
+  })
+  ipcMain.handle('studio:stripExcluded', async (_e, folder: string, fileName: string) => {
+    zipController = new AbortController()
+    try {
+      const removed = await service.stripExcluded(folder, fileName, zipProgress(), zipController.signal)
+      return { ok: true, removed }
     } catch (err) {
       return { ok: false, error: describeError(err) }
     } finally {

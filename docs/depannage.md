@@ -93,6 +93,16 @@ Une seule installation se fait à la fois : attends la fin de la précédente.
 **« Patiente : la mise à jour de l’application est en cours. »**\
 L’application va redémarrer pour se mettre à jour : relance l’installation après son redémarrage.
 
+**Un mod du modpack est désactivé dans CurseForge**\
+Le publieur le propose en option : il est installé, mais désactivé. Active-le dans CurseForge, dans la liste des
+mods du profil ; ton choix est gardé aux mises à jour (voir
+[Mettre à jour un modpack](bibliotheque.md#mettre-à-jour-un-modpack)).
+
+**Une configuration que j’avais modifiée a été remplacée par la mise à jour**\
+Le dossier `config` est remplacé à chaque mise à jour, sauf si le publieur a choisi de garder les configurations
+modifiées par les joueurs (voir [Garder les configurations des joueurs](reglages.md#garder-les-configurations-des-joueurs)).
+Demande-le-lui, ou garde une copie de tes fichiers avant chaque mise à jour.
+
 ## Liste des modpacks
 
 **« Limite de requêtes GitHub atteinte. Réessaie après 14:05. »**\
@@ -165,8 +175,15 @@ Un zip est encore en cours de copie ou ouvert dans un autre programme. Attends l
 Voir [Ce que doit contenir un zip](versions.md#ce-que-doit-contenir-un-zip).
 
 **« Le zip dépasse 2 Go, la limite de GitHub. »**\
-Retire du profil les fichiers lourds dont les joueurs n’ont pas besoin (shaders, packs de ressources, mondes…),
-puis recrée la version.
+Retire du profil les fichiers lourds dont les joueurs n’ont pas besoin (shaders, packs de ressources, mondes…), ou
+exclus-les dans les [réglages du modpack](reglages.md#exclure-des-fichiers), puis recrée la version.
+
+**« Contient N fichiers exclus dans les réglages (…) : ils seront publiés avec cette version. »**\
+Ce zip a été fait avant l’exclusion, ou préparé à la main. Clique sur **Retirer du zip** pour l’en débarrasser (voir
+[Un zip qui contient des fichiers exclus](reglages.md#un-zip-qui-contient-des-fichiers-exclus)).
+
+**« Ce zip ne contient aucun fichier exclu. »** ou **« Aucun fichier n’est exclu dans les réglages de ce modpack. »**\
+Le zip ou les réglages ont changé depuis l’affichage : il n’y a plus rien à retirer.
 
 **« pack.json est illisible (JSON invalide) : corrige-le ou supprime-le. »**\
 Le fichier `pack.json` du modpack a été abîmé. Corrige-le, ou supprime-le : le Studio en recrée un, avec un

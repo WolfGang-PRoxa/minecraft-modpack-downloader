@@ -134,6 +134,10 @@ export function modpackVersionFromRelease(
     archiveSize: archive.size,
     archiveSha256: manifest?.archiveSha256 ?? null,
     modsSignature: typeof manifest?.modsSignature === 'string' ? manifest.modsSignature : null,
+    disabledMods: Array.isArray(manifest?.disabledMods)
+      ? manifest.disabledMods.filter((file): file is string => typeof file === 'string' && file.length > 0)
+      : [],
+    keepPlayerConfigs: manifest?.keepPlayerConfigs === true,
     coverUrl: cover?.browser_download_url ?? null,
     releaseUrl: release.html_url
   }

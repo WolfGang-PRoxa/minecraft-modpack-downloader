@@ -10,9 +10,16 @@ import {
   type GhAsset,
   type GhRelease
 } from '../../shared/releases'
-import type { PublishProgress, PublishResult, SyncAction, SyncPlan, ZipAnalysis } from '../../shared/studio'
+import {
+  matchesDisabledMod,
+  type DisabledMod,
+  type PublishProgress,
+  type PublishResult,
+  type SyncAction,
+  type SyncPlan
+} from '../../shared/studio'
 import type { ModpackManifest } from '../../shared/types'
-import { describeError } from './analyze'
+import { describeError, type AnalyzedMod, type CachedAnalysis } from './analyze'
 import { CancelledError, GitHubError, type GitHubClient, type UploadSource } from './githubApi'
 import type { LocalPack, LocalVersion, LocalWorkspace } from './workspace'
 
@@ -73,7 +80,7 @@ function manifestOf(release: GhRelease, remote: RemoteState): ModpackManifest | 
 
 export interface Desired {
   pack: LocalPack
-  version: LocalVersion & { analysis: ZipAnalysis }
+  version: LocalVersion & { analysis: CachedAnalysis }
   tag: string
   releaseName: string
   body: string
@@ -83,7 +90,7 @@ export interface Desired {
   manifest: ModpackManifest
 }
 
-export function releaseBody(notes: string, analysis: ZipAnalysis): string {
+export function releaseBody(notes: string, analysis: CachedAnalysis): string {
   const footer = [
     analysis.minecraftVersion && `Minecraft ${analysis.minecraftVersion}`,
     formatLoader(analysis.modLoader),
@@ -95,12 +102,22 @@ export function releaseBody(notes: string, analysis: ZipAnalysis): string {
   return `${text}${text && footer ? '\n\n---\n' : ''}${footer ? `_${footer}_` : ''}`
 }
 
-function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnalysis }, author: string): Desired {
-  const { id, name, description, notes } = pack.meta
+/** Fichiers des mods de cette version que les joueurs reçoivent désactivés (ceux déjà désactivés dans le zip le sont d'office). */
+export function disabledFilesOf(mods: AnalyzedMod[], disabledMods: DisabledMod[]): string[] {
+  if (!disabledMods.length) return []
+  return mods
+    .filter((mod) => !mod.disabled && disabledMods.some((entry) => matchesDisabledMod(mod, entry)))
+    .map((mod) => mod.file)
+    .sort((a, b) => a.localeCompare(b, 'en', { sensitivity: 'base' }))
+}
+
+function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: CachedAnalysis }, author: string): Desired {
+  const { id, name, description, notes, disabledMods, keepPlayerConfigs } = pack.meta
   const number = String(version.number)
   const coverName = pack.cover ? `cover${extname(pack.cover.fileName).toLowerCase()}` : null
   const zipName = `${id}-${number}.zip`
   const a = version.analysis
+  const disabled = disabledFilesOf(a.mods, disabledMods)
   return {
     pack,
     version,
@@ -124,6 +141,9 @@ function desiredFor(pack: LocalPack, version: LocalVersion & { analysis: ZipAnal
       cover: coverName,
       coverSha256: pack.cover?.sha256 ?? null,
       modsSignature: a.modsSignature,
+      // Réglages pour les joueurs : absents tant qu'ils ne servent pas, pour ne rien renvoyer aux releases existantes.
+      ...(disabled.length ? { disabledMods: disabled } : {}),
+      ...(keepPlayerConfigs ? { keepPlayerConfigs: true } : {}),
       author,
       createdAt: ''
     }
@@ -145,11 +165,44 @@ const MANIFEST_FIELDS: Array<keyof ModpackManifest> = [
   'cover',
   'coverSha256',
   'modsSignature',
+  'disabledMods',
+  'keepPlayerConfigs',
   'author'
 ]
 
+/** Champs réglés dans « Réglages des versions » : un changement ne renvoie que modpack.json. */
+const PLAYER_SETTINGS_FIELDS: Array<keyof ModpackManifest> = ['disabledMods', 'keepPlayerConfigs']
+
+/** Valeur comparable d'un champ : absent, vide et faux se valent. */
+function comparable(value: unknown): string | null {
+  if (value === undefined || value === null || value === false) return null
+  if (Array.isArray(value) && value.length === 0) return null
+  return JSON.stringify(value)
+}
+
 function differingFields(a: ModpackManifest, b: ModpackManifest): Array<keyof ModpackManifest> {
-  return MANIFEST_FIELDS.filter((field) => (a[field] ?? null) !== (b[field] ?? null))
+  return MANIFEST_FIELDS.filter((field) => comparable(a[field]) !== comparable(b[field]))
+}
+
+/** Ce qui change pour les joueurs quand seuls les réglages des versions ont changé. */
+function settingsChanges(fields: Array<keyof ModpackManifest>, manifest: ModpackManifest): string[] {
+  const changes: string[] = []
+  if (fields.includes('disabledMods')) {
+    const count = manifest.disabledMods?.length ?? 0
+    changes.push(
+      count
+        ? `Mods désactivés chez les joueurs : ${count} dans cette version`
+        : 'Plus aucun mod désactivé chez les joueurs dans cette version'
+    )
+  }
+  if (fields.includes('keepPlayerConfigs')) {
+    changes.push(
+      manifest.keepPlayerConfigs
+        ? 'Les configurations modifiées par les joueurs seront gardées à la mise à jour'
+        : 'Le dossier config des joueurs sera de nouveau remplacé à la mise à jour'
+    )
+  }
+  return changes
 }
 
 const normalizeText = (text: string | null) => (text ?? '').replace(/\r\n/g, '\n').trim()
@@ -279,13 +332,15 @@ export function computePlan(workspace: LocalWorkspace, remote: RemoteState, auth
     }
     if (cover) details.push('Nouvelle image de couverture')
     if (manifest && !archive && !cover) {
+      const settings = outdated.filter((field) => PLAYER_SETTINGS_FIELDS.includes(field))
+      const others = outdated.filter((field) => !PLAYER_SETTINGS_FIELDS.includes(field))
       // Version publiée avant que l'empreinte des mods existe : seul modpack.json est renvoyé.
-      const signatureOnly = outdated.length === 1 && outdated[0] === 'modsSignature'
-      details.push(
-        signatureOnly
-          ? 'Empreinte des mods ajoutée : cette version pourra être reconnue dans le CurseForge des joueurs'
-          : 'Infos du modpack mises à jour (nom, description…)'
-      )
+      if (others.length === 1 && others[0] === 'modsSignature') {
+        details.push('Empreinte des mods ajoutée : cette version pourra être reconnue dans le CurseForge des joueurs')
+      } else if (others.length || !remoteManifest) {
+        details.push('Infos du modpack mises à jour (nom, description…)')
+      }
+      details.push(...settingsChanges(settings, d.manifest))
     }
     if (release_) details.push('Titre ou notes de version mis à jour')
     if (extraneous.length) details.push(`Fichiers en trop retirés : ${extraneous.map((a) => a.name).join(', ')}`)

@@ -16,6 +16,10 @@ export interface ModpackManifest {
   coverSha256?: string | null
   /** Empreinte des mods : permet de reconnaître cette version dans un profil CurseForge. */
   modsSignature?: string | null
+  /** Fichiers du dossier mods installés désactivés : le joueur peut les activer dans CurseForge. Absent : aucun. */
+  disabledMods?: string[]
+  /** Une mise à jour garde les fichiers du dossier config que le joueur a modifiés. Absent : non. */
+  keepPlayerConfigs?: boolean
   author: string | null
   createdAt: string
 }
@@ -38,6 +42,10 @@ export interface ModpackVersion {
   archiveSha256: string | null
   /** Empreinte des mods (absente des versions publiées avant qu'elle existe). */
   modsSignature: string | null
+  /** Fichiers du dossier mods installés désactivés. */
+  disabledMods: string[]
+  /** Une mise à jour garde les fichiers du dossier config que le joueur a modifiés. */
+  keepPlayerConfigs: boolean
   coverUrl: string | null
   releaseUrl: string
 }
@@ -87,9 +95,17 @@ export interface InstanceMarker {
   installedAt: string
   /** Entrées de premier niveau fournies par le modpack (pour nettoyer lors d'une mise à jour). */
   managedEntries: string[]
+  /**
+   * Empreinte SHA-1 de chaque fichier du dossier config fourni par cette version, par chemin (« config/x.toml ») :
+   * un fichier qui ne correspond plus a été modifié par le joueur. Absent des installations antérieures.
+   */
+  configFiles?: Record<string, string>
+  /** Mods que cette version installe désactivés (clés de modKey) : un mod dans l'autre état a été changé par le joueur. */
+  disabledByDefault?: string[]
 }
 
-export interface InstalledModpack extends InstanceMarker {
+/** Modpack installé par l'application, tel que la fenêtre le voit (sans les empreintes du marqueur). */
+export interface InstalledModpack extends Pick<InstanceMarker, 'id' | 'version' | 'tag' | 'installedAt' | 'managedEntries'> {
   instanceName: string
   instancePath: string
 }
@@ -221,6 +237,8 @@ export type InstallResult =
       curseForgeLaunched: boolean
       /** CurseForge était déjà ouvert : il peut ne pas afficher le profil avant d'être relancé. */
       curseForgeRunning: boolean
+      /** Fichiers de configuration modifiés par le joueur gardés à la place de ceux de la nouvelle version. */
+      keptConfigs: number
     }
   | { ok: false; cancelled: boolean; error: string }
 
