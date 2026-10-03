@@ -10,9 +10,17 @@ SmartScreen ne connaît pas encore cet installeur. Clique sur **Informations com
 quand même**. Télécharge toujours l’installeur depuis la
 [page officielle des versions](https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/releases).
 
-**« Une version plus récente de Modpack Downloader est déjà installée sur ce PC »**\
-Tu lances un installeur plus ancien que la version installée. **Oui** ouvre la version installée ; **Non** revient
-à la version de l’installeur.
+**L’installeur affiche « Version plus récente installée »**\
+Tu lances un installeur plus ancien que la version installée. **Ouvrir la …** ouvre la version installée ;
+**Installer la …** revient à la version de l’installeur, en gardant tes réglages et tes modpacks.
+
+**L’installeur affiche « Application ouverte »**\
+L’application tourne encore : elle doit être fermée pour être remplacée. Termine d’abord une installation de modpack
+ou une publication en cours, puis clique sur **Fermer et continuer** ; elle est rouverte à la fin.
+
+**« Modpack Downloader ne peut pas être fermé »**\
+L’installeur n’a pas réussi à fermer l’application, sans doute lancée en tant qu’administrateur. Ferme-la toi-même,
+puis clique sur **Réessayer**.
 
 **L’application ne s’ouvre pas**\
 Elle est peut-être déjà ouverte, réduite ou derrière une autre fenêtre : la relancer ramène sa fenêtre au premier

@@ -30,11 +30,12 @@ npm run changelog        # « Non publié » et commits feat/fix/perf depuis le 
 npm run changelog -- --brouillon       # ajoute à « Non publié » une entrée par commit non mentionné
 npm run changelog -- --version 1.2.0   # « Non publié » → 1.2.0 datée du jour, package(-lock).json en 1.2.0 (ni commit ni tag)
 npm run changelog -- --notes 1.2.0     # texte de la release GitHub (--sortie <fichier>), utilisé par la CI
-npm run build:win        # installeur NSIS dans dist/
+npm run build:win        # build + images de l'installeur + installeur NSIS dans dist/
 npm run studio           # app en développement, ouverte sur la vue Studio (--studio)
 npm run modpacks:ranger  # numérote les zips déposés (--dir, --yes)
 npm run modpacks:publier # met les releases en accord avec le dossier (--dir, --yes, --dry-run)
 npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/shared/logo.ts
+npx tsx scripts/generate-installer-images.ts   # build/installer/logo-<case>.bmp (non versionné, fait par build:win)
 ```
 
 ## Architecture
@@ -151,16 +152,31 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   Variables `SIGNPATH_ORGANIZATION_ID`, `SIGNPATH_PROJECT_SLUG`, `SIGNPATH_SIGNING_POLICY_SLUG` ; configuration
   d'artefact dans `.github/signpath/`. Seul l'installeur est signé (éditeur affiché : SignPath Foundation). La section
   « Politique de signature du code » du README est exigée par SignPath : la garder à jour.
-- `build/installer.nsh` — l'installeur ne crée pas de raccourci sur le bureau (l'app le propose au premier lancement,
-  réglage `shortcutPrompted`) ; la désinstallation retire celui du bureau, sauf lors d'une mise à jour (`isUpdated` :
-  l'ancien désinstalleur reçoit toujours `--updated` pendant une réinstallation). `customInstall` redemande à
-  l'Explorateur ses icônes (`SHChangeNotify`) : l'ancien désinstalleur l'a fait alors que l'exécutable était absent,
-  et electron-builder ne le refait qu'en créant lui-même le raccourci du bureau. `shortcut.ts` le refait aussi après
-  avoir créé un raccourci.
+- `build/installer.nsh` — installeur « assisté » (`oneClick: false` : celui « en un clic » affiche la bannière
+  SpiderBanner, impossible à styler) qui se comporte comme un installeur en un clic : pour l'utilisateur seul
+  (`customInstallMode`), sans page de fin, l'app ouverte à la fin par `customInstall` (avec `--updated` après une mise à
+  jour demandée par l'app). Chaque fenêtre est redessinée aux couleurs de l'app : décor de Modern UI caché, textes
+  `STATIC` posés à la main, boutons = textes cliquables nsDialogs (survol relevé par minuterie), barre de progression
+  plate, barre de titre sombre (DWM), tout mis à l'échelle du DPI. Logo : `build/installer/logo-<case>.bmp`, généré par
+  `scripts/generate-installer-images.ts`. Fenêtres : progression « Installation », « Mise à jour » (bleu, `Version a →
+  b`, titre de fenêtre « Mise à jour de … »), « Réinstallation », « Retour à une version précédente » (orange) ; pages
+  « déjà installé » et « application ouverte » ; désinstalleur : confirmation (Entrée ne désinstalle pas) puis
+  progression qui se ferme seule (sa propre `UninstPage instfiles`).
   `customInit` vérifie au lancement si l'app est déjà installée et intacte (`DisplayVersion` du registre + exécutable
-  présent) : même version → boîte Oui (ouvrir) / Non (réinstaller) / Annuler ; version installée plus récente →
-  avertissement avant retour en arrière ; plus ancienne → mise à jour sans question. Aucune question avec `/S` ni
-  `--updated`, que `appUpdate.ts` passe à l'installeur lors d'une mise à jour demandée par l'app.
+  présent) : même version → page Ouvrir / Réinstaller / Annuler ; version installée plus récente → page Ouvrir la vX /
+  Installer la vY / Annuler ; plus ancienne → mise à jour sans question. Aucune page avec `/S` ni `--updated`, que
+  `appUpdate.ts` passe à l'installeur lors d'une mise à jour demandée par l'app. `mpdPackageDir` garde une nouvelle
+  installation dans `Programs\<nom du paquet>` (en mode assisté, electron-builder prendrait le nom du produit).
+  App ouverte : `customCheckAppRunning` remplace la boîte « … est en cours d'utilisation » d'electron-builder et ses
+  appels PowerShell. `mpdAppProcesses` repère les processus lancés depuis `$INSTDIR` (Toolhelp +
+  `QueryFullProcessImageNameW`) ; fermeture normale (`taskkill` sans `/F`), forcée au bout de 3 s, après accord sur la
+  page « application ouverte » (installeur) ou la confirmation (désinstalleur). Avec `--updated`, l'app a 3 s pour se
+  fermer d'elle-même.
+  L'installeur ne crée pas de raccourci sur le bureau (l'app le propose au premier lancement, réglage
+  `shortcutPrompted`) ; la désinstallation retire celui du bureau, sauf lors d'une mise à jour (`isUpdated` : l'ancien
+  désinstalleur reçoit toujours `--updated` pendant une réinstallation). `customInstall` redemande à l'Explorateur ses
+  icônes (`SHChangeNotify`) : l'ancien désinstalleur l'a fait alors que l'exécutable était absent, et electron-builder
+  ne le refait qu'en créant lui-même le raccourci du bureau. `shortcut.ts` le refait aussi après avoir créé un raccourci.
 
 ## Conventions de publication
 
@@ -228,8 +244,19 @@ npx tsx scripts/generate-icon.ts   # régénère build/icon.png depuis src/share
   (`npx electron-builder --win --publish never -c.appId=com.wolfgangproxa.mpdtest -c.productName="MPD Test"
   -c.extraMetadata.name=mpd-test -c.extraMetadata.productName="MPD Test" -c.nsis.shortcutName="MPD Test"
   -c.directories.output=<dossier>`, plus `-c.extraMetadata.version=1.0.1` pour une autre version) : autre dossier
-  d'installation, autres clés de registre, autre `userData`. Désinstaller ensuite avec
-  `"Uninstall MPD Test.exe" /currentuser /S`. Les boîtes de dialogue NSIS se pilotent par `PostMessage(WM_COMMAND, IDYES…)`.
+  d'installation (`Programs\mpd-test`), autres clés de registre, autre `userData` (`%APPDATA%\MPD Test`, à supprimer
+  après). Désinstaller ensuite avec `"Uninstall MPD Test.exe" /currentuser /S`. Depuis PowerShell, mettre chaque
+  argument `-c.…` entier entre guillemets (`"-c.productName=MPD Test"`), sinon il est coupé au premier point.
+  Les boutons des pages (textes nsDialogs) se cliquent en envoyant `WM_COMMAND` (`STN_CLICKED`, identifiant du texte)
+  à leur dialogue ; les captures se font par `PrintWindow`. Le désinstalleur se recopie dans `%TEMP%` et s'y relance :
+  suivre ses fenêtres par leur titre.
+- NSIS (installeur assisté) : un `Quit` lancé depuis un clic nsDialogs (`NSD_OnClick`) reste sans effet ; le clic
+  poste « Suivant » (`MPD_NEXT`) et la fonction de sortie de la page agit. La page « pour qui installer »
+  d'electron-builder (`PAGE_INSTALL_MODE`, jamais montrée) consomme les `MUI_PAGE_CUSTOMFUNCTION_*` définis avant elle
+  (d'où la propre `UninstPage instfiles` du désinstalleur) et recalcule `$INSTDIR` à son entrée (d'où `mpdPackageDir`
+  refait par la page suivante). `SetCtlColors` n'accepte que des couleurs écrites en dur ; l'espace avant un `:` s'écrit
+  `${U+00A0}` (insécable), sinon le `:` peut passer seul à la ligne. PowerShell prend l'apostrophe typographique `’`
+  pour un délimiteur de chaîne.
 - Depuis Git Bash, un argument `/S` est converti en chemin : lancer l'installeur silencieux depuis PowerShell.
   Un exécutable de l'app lancé depuis un outil hérite d'`ELECTRON_RUN_AS_NODE` (pas de fenêtre) : retirer la variable.
 - L'installeur est compilé avec `-INPUTCHARSET UTF8` : les messages accentués d'`installer.nsh` s'écrivent en UTF-8.

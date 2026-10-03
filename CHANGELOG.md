@@ -8,6 +8,22 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 
 ## [Non publié]
 
+### Ajouts
+
+- Une fenêtre **Mise à jour**, distincte de celle de l’installation, indique ta version et la nouvelle (par exemple
+  `1.0.3 → 1.0.4`).
+- Lancé pendant que l’application est ouverte, l’installeur prévient qu’il va la fermer (**Fermer et continuer** ou
+  **Annuler**), puis la rouvre à la fin.
+
+### Améliorations
+
+- Les fenêtres de l’installeur et du désinstalleur prennent le style de l’application : fond sombre, logo, couleurs,
+  boutons et barre de progression.
+- Relancé alors que l’application est déjà installée, l’installeur affiche une page claire (**Ouvrir l’application**,
+  **Réinstaller** ou **Annuler**) au lieu d’une boîte Oui / Non / Annuler. De même quand une version plus récente est
+  installée.
+- La désinstallation demande confirmation dans une fenêtre du même style, puis se ferme d’elle-même.
+
 ## [1.0.4] - 2026-10-03
 
 ### Ajouts

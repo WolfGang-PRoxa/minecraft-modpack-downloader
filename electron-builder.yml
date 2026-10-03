@@ -14,8 +14,11 @@ win:
   icon: build/icon.png
   artifactName: Modpack-Downloader-Setup-${version}.${ext}
 nsis:
-  oneClick: true
+  # Installeur « assisté » pour pouvoir dessiner ses fenêtres aux couleurs de l'application (build/installer.nsh),
+  # réglé pour se comporter comme un installeur « en un clic » : aucune question, pour l'utilisateur seul.
+  oneClick: false
   perMachine: false
+  allowToChangeInstallationDirectory: false
   # Le raccourci du bureau est proposé par l'application elle-même (bureau ou autre emplacement).
   createDesktopShortcut: false
   include: build/installer.nsh

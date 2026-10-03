@@ -13,7 +13,7 @@
     "typecheck": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p tsconfig.web.json && tsc -p relay/tsconfig.json",
     "docs:verifier": "tsx scripts/docs.ts",
     "changelog": "tsx scripts/changelog.ts",
-    "build:win": "npm run build && electron-builder --win --publish never",
+    "build:win": "npm run build && tsx scripts/generate-installer-images.ts && electron-builder --win --publish never",
     "preview": "electron-vite preview",
     "studio": "electron-vite dev -- --studio",
     "modpacks:ranger": "tsx scripts/modpacks.ts ranger",

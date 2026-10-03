@@ -99,5 +99,5 @@ il prend quelques dizaines de millisecondes, même pour des milliers de mods.
 | `--updated` | Passée par l’installeur après une mise à jour : l’application annonce sa nouvelle version. |
 | `--user-data-dir=<dossier>` | Utilise un autre dossier de données que `%APPDATA%\Modpack Downloader` (tests). |
 
-L’installeur accepte `/S` (installation silencieuse, sans question) et `--updated` (mise à jour lancée par
-l’application).
+L’installeur accepte `/S` (installation silencieuse : ni question ni fenêtre) et `--updated` (mise à jour lancée
+par l’application : la fenêtre **Mise à jour** s’affiche, puis l’application est relancée avec `--updated`).

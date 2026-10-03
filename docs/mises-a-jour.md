@@ -25,7 +25,8 @@ vue : « Nouvelle version disponible : 1.1.0 · tu utilises la 1.0.3 », avec la
 1. **Mettre à jour** télécharge le nouvel installeur ; la barre affiche la progression, et **Annuler** l’interrompt.
 2. L’empreinte SHA-256 du fichier téléchargé est comparée à celle que GitHub publie pour cet installeur : un fichier
    abîmé ou modifié n’est jamais lancé.
-3. L’application se ferme, l’installeur remplace ses fichiers sans rien demander, puis la relance.
+3. L’application se ferme. La fenêtre **Mise à jour** de l’installeur montre la progression, avec ta version et la
+   nouvelle (`1.0.3 → 1.0.4`) : il remplace les fichiers sans rien demander, puis relance l’application.
 4. Une notification confirme la nouvelle version et propose **Voir les nouveautés**.
 
 Tes réglages, ta connexion GitHub, ton raccourci sur le bureau et tes modpacks ne bougent pas.
@@ -56,8 +57,9 @@ depuis **Paramètres → À propos → Nouveautés**. Pour chaque version : sa d
 ## En cas de problème
 
 Si la mise à jour échoue, la notification **Mise à jour impossible** en donne la raison et propose **Télécharger
-depuis GitHub** : télécharge l’installeur de la nouvelle version et lance-le. Il met l’application à jour sans
-question (voir [Relancer l’installeur](installation.md#relancer-linstalleur)).
+depuis GitHub** : télécharge l’installeur de la nouvelle version et lance-le. Il met l’application à jour ; si elle
+est encore ouverte, il propose d’abord de la fermer (voir
+[Relancer l’installeur](installation.md#relancer-linstalleur)).
 
 Les messages possibles sont détaillés dans
 [Dépannage](depannage.md#mise-à-jour-de-lapplication).
