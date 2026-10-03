@@ -8,6 +8,8 @@ Le format suit [Keep a Changelog](https://keepachangelog.com/fr/1.1.0/). Pour te
 
 ## [Non publié]
 
+## [1.0.4] - 2026-10-03
+
 ### Ajouts
 
 - **Aide intégrée** : toute la documentation de l’application (installer et jouer, publier avec le Studio,
@@ -104,7 +106,8 @@ Première version publique.
 - Mises à jour de l’application proposées en haut de la fenêtre, quelle que soit la vue : téléchargement vérifié,
   installation et redémarrage automatiques.
 
-[Non publié]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.3...HEAD
+[Non publié]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.4...HEAD
+[1.0.4]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.3...app-v1.0.4
 [1.0.3]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.2...app-v1.0.3
 [1.0.2]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.1...app-v1.0.2
 [1.0.1]: https://github.com/WolfGang-PRoxa/minecraft-modpack-downloader/compare/app-v1.0.0...app-v1.0.1
